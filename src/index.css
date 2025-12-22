@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-color: #2563eb;
+  --primary-rgb: 37, 99, 235;
+}
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    background-color: var(--primary-color);
+    @apply hover:opacity-90 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-fishing-600 hover:bg-fishing-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  
+  .btn-outline {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    @apply border-2 hover:bg-opacity-10 font-semibold py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent outline-none transition-all;
+  }
+
+  .input-field:focus {
+    ring-color: rgba(var(--primary-rgb), 0.5);
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-md p-6 border border-gray-100;
+  }
+
+  /* Aplicar cor primária em elementos específicos */
+  .text-primary {
+    color: var(--primary-color) !important;
+  }
+
+  .bg-primary {
+    background-color: var(--primary-color) !important;
+  }
+
+  .border-primary {
+    border-color: var(--primary-color) !important;
+  }
+
+  .hover\:bg-primary:hover {
+    background-color: var(--primary-color) !important;
+  }
+
+  .hover\:text-primary:hover {
+    color: var(--primary-color) !important;
+  }
+}

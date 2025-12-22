@@ -1,0 +1,97 @@
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
+
+// Public Pages
+import { HomePage } from './pages/public/HomePage';
+import { TeamRegistration } from './pages/public/TeamRegistration';
+import { Checkout } from './pages/public/Checkout';
+import { LoginPage } from './pages/LoginPage';
+
+// Admin Pages
+import { Dashboard } from './pages/admin/Dashboard';
+import { CarouselManagement } from './pages/admin/CarouselManagement';
+import { CircuitManagement } from './pages/admin/CircuitManagement';
+import { StageManagement } from './pages/admin/StageManagement';
+import { TeamManagement } from './pages/admin/TeamManagement';
+import { ScoreEntry } from './pages/admin/ScoreEntry';
+import { Rankings } from './pages/admin/Rankings';
+
+function App() {
+    return (
+        <AuthProvider>
+            <Router>
+                <Routes>
+                    {/* Public Routes */}
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/register/:stageId" element={<TeamRegistration />} />
+                    <Route path="/checkout" element={<Checkout />} />
+                    <Route path="/login" element={<LoginPage />} />
+
+                    {/* Admin Routes - Protected */}
+                    <Route
+                        path="/admin"
+                        element={
+                            <ProtectedRoute allowedRoles={['super_admin', 'judge', 'captain']}>
+                                <Dashboard />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/admin/carousel"
+                        element={
+                            <ProtectedRoute allowedRoles={['super_admin']}>
+                                <CarouselManagement />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/admin/circuits"
+                        element={
+                            <ProtectedRoute allowedRoles={['super_admin']}>
+                                <CircuitManagement />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/admin/stages"
+                        element={
+                            <ProtectedRoute allowedRoles={['super_admin']}>
+                                <StageManagement />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/admin/teams"
+                        element={
+                            <ProtectedRoute allowedRoles={['super_admin']}>
+                                <TeamManagement />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/admin/scores"
+                        element={
+                            <ProtectedRoute allowedRoles={['super_admin', 'judge']}>
+                                <ScoreEntry />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/admin/rankings"
+                        element={
+                            <ProtectedRoute allowedRoles={['super_admin', 'judge']}>
+                                <Rankings />
+                            </ProtectedRoute>
+                        }
+                    />
+
+                    {/* Catch all - redirect to home */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+            </Router>
+        </AuthProvider>
+    );
+}
+
+export default App;

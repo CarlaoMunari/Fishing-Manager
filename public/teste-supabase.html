@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Direto Supabase Auth</title>
+    <style>
+        body {
+            font-family: monospace;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #0f0;
+        }
+        button {
+            background: #0a0;
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-family: monospace;
+        }
+        button:hover {
+            background: #0f0;
+        }
+        .log {
+            background: #000;
+            padding: 15px;
+            margin: 10px 0;
+            border: 1px solid #0f0;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error { color: #f00; }
+        .success { color: #0f0; }
+        .warning { color: #ff0; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste Direto Supabase Auth API</h1>
+    <p>Este teste faz requisição DIRETA para a API sem usar o SDK</p>
+    
+    <button onclick="testeHealth()">1️⃣ Teste Health</button>
+    <button onclick="testeAuth()">2️⃣ Teste Login Direto</button>
+    <button onclick="limparLog()">🗑️ Limpar</button>
+    
+    <div class="log" id="log"></div>
+
+    <script>
+        const SUPABASE_URL = 'https://viltrnhulqymoeughmmt.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpbHRybmh1bHF5bW9ldWdobW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQzNDY2NTEsImV4cCI6MjA3OTkyMjY1MX0.PRigkelRd95A_X-zqC1bTqFM2aHW6yG-jjVqvR4TrZ4';
+
+        function log(msg, type = 'normal') {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+            logDiv.innerHTML += `<span class="${className}">[${time}] ${msg}</span>\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function limparLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        async function testeHealth() {
+            log('🔵 Iniciando teste de Health...', 'normal');
+            const startTime = Date.now();
+            
+            try {
+                const response = await fetch(`${SUPABASE_URL}/auth/v1/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const elapsed = Date.now() - startTime;
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Health OK! (${elapsed}ms)`, 'success');
+                    log(`Resposta: ${JSON.stringify(data)}`, 'success');
+                } else {
+                    log(`⚠️ Health retornou status: ${response.status}`, 'warning');
+                }
+            } catch (error) {
+                const elapsed = Date.now() - startTime;
+                log(`❌ Erro no Health (${elapsed}ms): ${error.message}`, 'error');
+            }
+        }
+
+        async function testeAuth() {
+            log('🔵 Iniciando teste de Login...', 'normal');
+            log('Email: carlao.basket@gmail.com', 'normal');
+            const startTime = Date.now();
+            
+            // Timeout de 10 segundos
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+                controller.abort();
+                log('⏱️ TIMEOUT após 10 segundos!', 'error');
+            }, 10000);
+            
+            try {
+                const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': SUPABASE_ANON_KEY,
+                    },
+                    body: JSON.stringify({
+                        email: 'carlao.basket@gmail.com',
+                        password: 'Admin@2025',
+                    }),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                const elapsed = Date.now() - startTime;
+                
+                log(`📊 Status: ${response.status} (${elapsed}ms)`, 'normal');
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log(`✅ LOGIN FUNCIONOU! (${elapsed}ms)`, 'success');
+                    log(`User ID: ${data.user?.id}`, 'success');
+                    log(`Email: ${data.user?.email}`, 'success');
+                    log(`Access Token: ${data.access_token?.substring(0, 50)}...`, 'success');
+                } else {
+                    log(`❌ Erro de autenticação (${elapsed}ms)`, 'error');
+                    log(`Mensagem: ${data.error_description || data.message}`, 'error');
+                }
+            } catch (error) {
+                clearTimeout(timeoutId);
+                const elapsed = Date.now() - startTime;
+                
+                if (error.name === 'AbortError') {
+                    log(`❌ TIMEOUT! Request abortado após ${elapsed}ms`, 'error');
+                } else {
+                    log(`❌ Erro: ${error.message} (${elapsed}ms)`, 'error');
+                }
+            }
+        }
+
+        // Auto-executar health check ao carregar
+        window.onload = () => {
+            log('🚀 Página carregada. Clique nos botões para testar.', 'normal');
+            setTimeout(testeHealth, 500);
+        };
+    </script>
+</body>
+</html>

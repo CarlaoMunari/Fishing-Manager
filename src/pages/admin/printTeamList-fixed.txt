@@ -1,0 +1,105 @@
+    const printTeamList = () => {
+        try {
+            if (teams.length === 0) {
+                alert('Nenhuma equipe inscrita nesta etapa!');
+                return;
+            }
+
+            // PDF em A4 PAISAGEM
+            const doc = new jsPDF('landscape', 'mm', 'a4');
+            
+            const stage = stages.find(s => s.id === selectedStage);
+            const circuit = circuits.find(c => c.id === selectedCircuit);
+
+            // Cabeçalho
+            doc.setFontSize(20);
+            doc.setFont('helvetica', 'bold');
+            doc.text('LISTA DE EQUIPES INSCRITAS', 148, 15, { align: 'center' });
+
+            // Informações do circuito e etapa
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'normal');
+            if (circuit && stage) {
+                doc.text(`${circuit.name} - ${stage.name}`, 148, 23, { align: 'center' });
+                doc.text(`${stage.location} - ${stage.date.toLocaleDateString('pt-BR')}`, 148, 29, { align: 'center' });
+            }
+
+            // Total de equipes
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Total de Equipes: ${teams.length}`, 15, 38);
+
+            // Preparar dados da tabela
+            const tableData = teams.map((team, index) => {
+                const fichaNumber = (index + 1).toString().padStart(2, '0');
+                
+                // ID da equipe - número sequencial de inscrição
+                const teamId = (index + 1).toString();
+                
+                // Todos os participantes separados por vírgula
+                const participantes = team.members?.map(m => m.name).join(', ') || '-';
+                
+                // Data de pagamento (se existir)
+                const dataPagamento = (team as any).paymentDate 
+                    ? new Date((team as any).paymentDate).toLocaleDateString('pt-BR')
+                    : '-';
+                
+                // Telefone
+                const telefone = team.responsiblePhone || '-';
+                
+                return [
+                    fichaNumber,
+                    teamId,
+                    team.teamName || 'Nome não informado',
+                    participantes,
+                    dataPagamento,
+                    telefone,
+                ];
+            });
+
+            // Gerar tabela em paisagem
+            autoTable(doc, {
+                head: [['Ficha', 'ID', 'Nome da Equipe', 'Participantes', 'Data Pgto', 'Tel']],
+                body: tableData,
+                startY: 43,
+                styles: {
+                    fontSize: 8,
+                    cellPadding: 2,
+                },
+                headStyles: {
+                    fillColor: [41, 128, 185],
+                    fontStyle: 'bold',
+                    halign: 'center',
+                    fontSize: 9,
+                },
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: 15 }, // Ficha
+                    1: { halign: 'center', cellWidth: 12 }, // ID Equipe
+                    2: { cellWidth: 48 }, // Nome da Equipe
+                    3: { cellWidth: 115 }, // Participantes
+                    4: { halign: 'center', cellWidth: 25 }, // Data Pagamento
+                    5: { halign: 'center', cellWidth: 25 }, // Telefone
+                },
+                alternateRowStyles: { fillColor: [245, 245, 245] },
+                margin: { left: 10, right: 10 },
+            });
+
+            // Rodapé
+            const finalY = (doc as any).lastAutoTable?.finalY || 43;
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'italic');
+            doc.text(
+                `Documento gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`,
+                148,
+                finalY + 10,
+                { align: 'center' }
+            );
+
+            // Salvar
+            const fileName = `lista-inscricoes-${stage?.name || 'etapa'}-${new Date().toISOString().split('T')[0]}.pdf`;
+            doc.save(fileName);
+        } catch (error) {
+            console.error('Erro ao gerar PDF:', error);
+            alert('Erro ao gerar PDF. Verifique o console para detalhes.');
+        }
+    };

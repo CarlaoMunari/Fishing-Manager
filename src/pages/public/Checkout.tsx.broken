@@ -1,0 +1,360 @@
+import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+import { Stage } from '@/types';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Navbar } from '@/components/public/Navbar';
+import { CreditCard, QrCode, CheckCircle, FileText, Landmark } from 'lucide-react';
+import QRCode from 'qrcode.react';
+
+export function Checkout() {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const { team, stage } = location.state as {
+        team: any;
+        stage: Stage;
+    };
+
+    const [paymentMethod, setPaymentMethod] = useState<'pix' | 'debit_card' | 'credit_card' | 'boleto' | null>(null);
+    const [processing, setProcessing] = useState(false);
+    const [completed, setCompleted] = useState(false);
+
+    // Credit/Debit card form state
+    const [cardNumber, setCardNumber] = useState('');
+    const [cardName, setCardName] = useState('');
+    const [cardExpiry, setCardExpiry] = useState('');
+    const [cardCvv, setCardCvv] = useState('');
+
+    // PIX data
+    const pixKey = '17996319555';
+    const pixPayload = `00020126360014BR.GOV.BCB.PIX0114${pixKey}520400005303986540${stage.registrationFee.toFixed(2)}5802BR5925CIRCUITO PESCA ESPORTIVA6009SAO PAULO62070503***6304`;
+
+    // Bank data
+    const bankData = {
+        bank: 'Banco do Brasil',
+        agency: '3031-7',
+        account: '16719-3'
+    };
+
+    // Boleto data (simulated)
+    const boletoCode = '34191.79001 01043.510047 91020.150008 1 89340000' + stage.registrationFee.toFixed(2).replace('.', '');
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 3);
+
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+        }).format(value);
+    };
+
+    const formatDate = (date: Date) => {
+        return new Intl.DateTimeFormat('pt-BR').format(date);
+    };
+
+    const handlePayment = async () => {
+        if (!paymentMethod) return;
+
+        setProcessing(true);
+
+        // Simulate payment processing
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        try {
+            // Update team as paid
+            const { error } = await supabase
+                .from('teams')
+                .update({
+                    paid: true,
+                    payment_method: paymentMethod,
+                })
+                .eq('id', team.id);
+
+            if (error) throw error;
+
+            setCompleted(true);
+        } catch (error) {
+            console.error('Erro ao atualizar pagamento:', error);
+            alert('Erro ao processar pagamento. Tente novamente.');
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    if (completed) {
+        return (
+            <>
+                <Navbar />
+                <div className="container mx-auto px-4 py-12 max-w-2xl">
+                    <Card className="text-center">
+                        <CheckCircle className="w-16 h-16 text-fishing-600 mx-auto mb-4" />
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                            Inscrição Confirmada!
+                        </h1>
+                        <p className="text-gray-600 mb-6">
+                            Sua equipe foi inscrita com sucesso na etapa {stage.name}.
+                        </p>
+                        <p className="text-sm text-gray-500 mb-6">
+                            Você receberá um e-mail de confirmação em breve.
+                        </p>
+                        <Button onClick={() => navigate('/')}>
+                            Voltar para Home
+                        </Button>
+                    </Card>
+                </div>
+            </>
+        );
+    }
+
+    return (
+        <>
+            <Navbar />
+            <div className="container mx-auto px-4 py-12 max-w-6xl">
+                <div className="grid gap-6 lg:grid-cols-2">
+                    {/* Order Summary */}
+                    <Card>
+                        <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                            Resumo da Inscrição
+                        </h2>
+
+                        <div className="space-y-3 mb-6">
+                            <div>
+                                <p className="text-sm text-gray-600">Etapa</p>
+                                <p className="font-semibold">{stage.name}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-600">Local</p>
+                                <p className="font-semibold">{stage.location}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-600">Nome da Equipe</p>
+                                <p className="font-semibold">{team.team_name}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-600">Cidade</p>
+                                <p className="font-semibold">{team.city}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-600">Responsável</p>
+                                <p className="font-semibold">{team.responsible_name}</p>
+                                <p className="text-sm text-gray-500">{team.responsible_email}</p>
+                                <p className="text-sm text-gray-500">{team.responsible_phone}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-600">Integrantes</p>
+                                <ul className="space-y-1">
+                                    {team.members.map((member: any, index: number) => (
+                                        <li key={index} className="text-sm">
+                                            <span className="font-medium">
+                                                {['Capitão', 'Pescador 1', 'Pescador 2', 'Reserva'][index]}:
+                                            </span>{' '}
+                                            {member.name} ({member.nickname})
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div className="border-t border-gray-200 pt-4">
+                            <div className="flex items-center justify-between text-xl font-bold">
+                                <span>Total</span>
+                                <span className="text-fishing-700">
+                                    {formatCurrency(stage.registrationFee)}
+                                </span>
+                            </div>
+                        </div>
+                    </Card>
+
+                    {/* Payment Method */}
+                    <div className="space-y-4">
+                        <Card>
+                            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                                Forma de Pagamento
+                            </h2>
+
+                            <div className="space-y-3">
+                                {/* PIX Option */}
+                                <button
+                                    onClick={() => setPaymentMethod('pix')}
+                                    className={`w-full p-4 border-2 rounded-lg transition-all ${paymentMethod === 'pix'
+                                        ? 'border-ocean-600 bg-ocean-50'
+                                        : 'border-gray-200 hover:border-ocean-300'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <QrCode className="w-6 h-6 text-ocean-600" />
+                                        <div className="text-left">
+                                            <p className="font-semibold">PIX</p>
+                                            <p className="text-sm text-gray-600">Pagamento instantâneo</p>
+                                        </div>
+                                    </div>
+                                </button>
+
+                                {/* Debit Card Option */}
+                                <button
+                                    onClick={() => setPaymentMethod('debit_card')}
+                                    className={`w-full p-4 border-2 rounded-lg transition-all ${paymentMethod === 'debit_card'
+                                        ? 'border-ocean-600 bg-ocean-50'
+                                        : 'border-gray-200 hover:border-ocean-300'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <CreditCard className="w-6 h-6 text-ocean-600" />
+                                        <div className="text-left">
+                                            <p className="font-semibold">Cartão de Débito</p>
+                                            <p className="text-sm text-gray-600">Transferência bancária</p>
+                                        </div>
+                                    </div>
+                                </button>
+
+                                {/* Credit Card Option */}
+                                <button
+                                    onClick={() => setPaymentMethod('credit_card')}
+                                    className={`w-full p-4 border-2 rounded-lg transition-all ${paymentMethod === 'credit_card'
+                                        ? 'border-ocean-600 bg-ocean-50'
+                                        : 'border-gray-200 hover:border-ocean-300'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <CreditCard className="w-6 h-6 text-ocean-600" />
+                                        <div className="text-left">
+                                            <p className="font-semibold">Cartão de Crédito</p>
+                                            <p className="text-sm text-gray-600">Transferência bancária</p>
+                                        </div>
+                                    </div>
+                                </button>
+
+                                {/* Boleto Option */}
+                                <button
+                                    onClick={() => setPaymentMethod('boleto')}
+                                    className={`w-full p-4 border-2 rounded-lg transition-all ${paymentMethod === 'boleto'
+                                        ? 'border-ocean-600 bg-ocean-50'
+                                        : 'border-gray-200 hover:border-ocean-300'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <FileText className="w-6 h-6 text-ocean-600" />
+                                        <div className="text-left">
+                                            <p className="font-semibold">Boleto Bancário</p>
+                                            <p className="text-sm text-gray-600">Vencimento em 3 dias</p>
+                                        </div>
+                                    </div>
+                                </button>
+                            </div>
+                        </Card>
+
+                        {/* Payment Details */}
+                        {paymentMethod === 'pix' && (
+                            <Card>
+                                <h3 className="text-lg font-semibold mb-4">Pague com PIX</h3>
+                                <div className="space-y-4">
+                                    <div className="flex justify-center">
+                                        <div className="p-4 bg-white rounded-lg border-2 border-gray-200">
+                                            <QRCode value={pixPayload} size={200} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-700 mb-2">Chave PIX:</p>
+                                        <div className="flex items-center gap-2">
+                                            <Input value={pixKey} readOnly />
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => navigator.clipboard.writeText(pixKey)}
+                                            >
+                                                Copiar
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-700 mb-2">PIX Copia e Cola:</p>
+                                        <div className="flex items-center gap-2">
+                                            <Input value={pixPayload} readOnly className="text-xs" />
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => navigator.clipboard.writeText(pixPayload)}
+                                            >
+                                                Copiar
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <div className="bg-ocean-50 p-3 rounded-lg">
+                                        <p className="text-sm text-ocean-900">
+                                            Escaneie o QR Code ou copie a chave PIX para fazer o pagamento instantâneo.
+                                        </p>
+                                    </div>
+                                </div>
+                            </Card>
+                        )}
+
+                        {(paymentMethod === 'debit_card' || paymentMethod === 'credit_card') && (
+                            <Card>
+                                <h3 className="text-lg font-semibold mb-4">
+                                    {paymentMethod === 'debit_card' ? 'Cartão de Débito' : 'Cartão de Crédito'}
+                                </h3>
+                                <div className="space-y-4">
+                                    <div className="bg-fishing-50 p-4 rounded-lg border-2 border-fishing-200">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Landmark className="w-5 h-5 text-fishing-700" />
+                                            <p className="font-semibold text-fishing-900">Dados Bancários</p>
+                                        </div>
+                                        <div className="space-y-2 text-sm">
+                                            <p><span className="font-medium">Banco:</span> {bankData.bank}</p>
+                                            <p><span className="font-medium">Agência:</span> {bankData.agency}</p>
+                                            <p><span className="font-medium">Conta Corrente:</span> {bankData.account}</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-gray-600">
+                                        Faça a transferência para a conta acima no valor de <strong>{formatCurrency(stage.registrationFee)}</strong> usando seu {paymentMethod === 'debit_card' ? 'cartão de débito' : 'cartão de crédito'}.
+                                    </p>
+                                </div>
+                            </Card>
+                        )}
+
+                        {paymentMethod === 'boleto' && (
+                            <Card>
+                                <h3 className="text-lg font-semibold mb-4">Boleto Bancário</h3>
+                                <div className="space-y-4">
+                                    <div className="bg-fishing-50 p-4 rounded-lg border-2 border-fishing-200">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Landmark className="w-5 h-5 text-fishing-700" />
+                                            <p className="font-semibold text-fishing-900">Dados Bancários</p>
+                                        </div>
+                                        <div className="space-y-2 text-sm">
+                                            <p><span className="font-medium">Banco:</span> {bankData.bank}</p>
+                                            <p><span className="font-medium">Agência:</span> {bankData.agency}</p>
+                                            <p><span className="font-medium">Conta Corrente:</span> {bankData.account}</p>
+                                            <p><span className="font-medium">Valor:</span> {formatCurrency(stage.registrationFee)}</p>
+                                            <p><span className="font-medium">Vencimento:</span> {formatDate(dueDate)}</p>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-700 mb-2">Código de Barras:</p>
+                                        <div className="p-3 bg-white border-2 border-gray-200 rounded font-mono text-xs text-center">
+                                            {boletoCode}
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-gray-600">
+                                        Use o código acima para pagar o boleto em qualquer banco ou casa lotérica.
+                                    </p>
+                                </div>
+                            </Card>
+                        )}
+
+                        {paymentMethod && (
+                            <Button
+                                variant="primary"
+                                onClick={handlePayment}
+                                loading={processing}
+                                className="w-full"
+                            >
+                                Confirmar Pagamento
+                            </Button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+}
