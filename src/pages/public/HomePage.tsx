@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { Navbar } from '@/components/public/Navbar';
 import { Footer } from '@/components/public/Footer';
 import { supabase } from '@/lib/supabase';
-import { Trophy, Calendar, MapPin, Fish, ArrowRight } from 'lucide-react';
+import { Calendar, MapPin, Fish, ArrowRight, UserPlus } from 'lucide-react';
 
 interface StageEvent {
     id: string;
@@ -29,6 +29,9 @@ export function HomePage() {
     const [carouselImages, setCarouselImages] = useState<Array<{ url: string, link?: string }>>([]);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [sponsorLogos, setSponsorLogos] = useState<any[]>([]);
+    const [activeStageId, setActiveStageId] = useState<string | null>(null);
+    const [heroTitle, setHeroTitle] = useState('PESCA ESPORTIVA COM CONSCIÊNCIA');
+    const [heroSubtitle, setHeroSubtitle] = useState('Unindo esporte, técnica e paixão pela natureza. Pratique a pesca esportiva com responsabilidade e contribua para a preservação dos nossos rios e peixes.');
 
     useEffect(() => {
         loadCompanyAndData();
@@ -151,16 +154,48 @@ export function HomePage() {
 
             const { data: stagesData } = await stagesDataQuery;
 
-            if (stagesData) {
+                        if (stagesData && stagesData.length > 0) {
                 const events = stagesData.map((stage: any) => ({
                     id: stage.id,
                     name: stage.name,
                     location: stage.location,
                     date: new Date(stage.date),
                     circuitName: stage.circuits?.name || 'Circuito',
-                    imageUrl: stage.image_url // Adicionar imagem da etapa
+                    imageUrl: stage.image_url
                 }));
                 setUpcomingStages(events);
+                setActiveStageId(events[0].id);
+            } else {
+                let fallbackQuery = supabase
+                    .from('stages')
+                    .select('id')
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
+                if (cId) {
+                    fallbackQuery = fallbackQuery.eq('company_id', cId);
+                }
+                const { data: fallbackData } = await fallbackQuery;
+                if (fallbackData && fallbackData.length > 0) {
+                    setActiveStageId(fallbackData[0].id);
+                }
+            }
+
+            if (cId) {
+                const { data: siteSettings } = await supabase
+                    .from('company_settings')
+                    .select('hero_title, hero_subtitle, title, subtitle')
+                    .eq('company_id', cId)
+                    .maybeSingle();
+
+                if (siteSettings) {
+                    if (siteSettings.hero_title || siteSettings.title) {
+                        setHeroTitle(siteSettings.hero_title || siteSettings.title);
+                    }
+                    if (siteSettings.hero_subtitle || siteSettings.subtitle) {
+                        setHeroSubtitle(siteSettings.hero_subtitle || siteSettings.subtitle);
+                    }
+                }
             }
 
             const { data: sponsorsData } = await supabase
@@ -218,21 +253,23 @@ export function HomePage() {
             {/* Hero Content Section with Stats */}
             <div className="bg-slate-900 py-20 border-b border-slate-800">
                 <div className="container mx-auto px-4 text-center text-white">
-                    <h1 className="text-5xl md:text-7xl font-bold mb-6 tracking-tight">
-                        PESCA ESPORTIVA <br />
-                        <span className="text-primary">COM CONSCIÊNCIA</span>
+                    <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 tracking-tight uppercase">
+                        {heroTitle}
                     </h1>
                     <p className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto mb-12">
-                        Unindo esporte, técnica e paixão pela natureza. Pratique a pesca esportiva
-                        com responsabilidade e contribua para a preservação dos nossos rios e peixes.
+                        {heroSubtitle}
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
                         <Link
-                            to={companyName ? `/${companyName}/ranking` : '/ranking'}
-                            className="px-8 py-4 bg-primary hover:opacity-90 text-white rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2"
+                            to={
+                                activeStageId
+                                    ? (companyName ? `/${companyName}/register/${activeStageId}` : `/register/${activeStageId}`)
+                                    : (companyName ? `/${companyName}/etapas` : '/etapas')
+                            }
+                            className="px-10 py-5 bg-primary hover:opacity-90 text-white rounded-full font-bold text-xl transition-all transform hover:scale-105 shadow-xl flex items-center justify-center gap-3 tracking-wide uppercase"
                         >
-                            <Trophy className="w-5 h-5" />
-                            Ver Rankings
+                            <UserPlus className="w-6 h-6" />
+                            INSCREVA-SE
                         </Link>
                     </div>
 

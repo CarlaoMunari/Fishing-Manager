@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 export function Footer() {
     const { companyName } = useParams();
     const [settings, setSettings] = useState({
+        footerDescription: 'Circuito Pesca Promovendo a pesca esportiva e a preservação ambiental através de competições organizadas e profissionais.',
         contactEmail: 'contato@circuitopesca.com.br',
         contactPhone: '(11) 99999-9999',
         contactAddress: 'Av. da Pesca, 1000\nSão Paulo - SP',
@@ -43,6 +44,7 @@ export function Footer() {
 
                 if (companySettings) {
                     setSettings({
+                        footerDescription: companySettings.footer_description || 'Circuito Pesca Promovendo a pesca esportiva e a preservação ambiental através de competições organizadas e profissionais.',
                         contactEmail: companySettings.contact_email || 'contato@circuitopesca.com.br',
                         contactPhone: companySettings.contact_phone || '(11) 99999-9999',
                         contactAddress: companySettings.contact_address || 'Av. da Pesca, 1000\nSão Paulo - SP',
@@ -66,8 +68,8 @@ export function Footer() {
                     {/* About */}
                     <div>
                         <h3 className="text-xl font-bold mb-4 text-blue-400">Circuito Pesca</h3>
-                        <p className="text-gray-400 text-sm leading-relaxed">
-                            Promovendo a pesca esportiva e a preservação ambiental através de competições organizadas e profissionais.
+                        <p className="text-gray-400 text-sm leading-relaxed whitespace-pre-line">
+                            {settings.footerDescription}
                         </p>
                     </div>
 

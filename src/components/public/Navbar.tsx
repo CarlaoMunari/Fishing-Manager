@@ -3,6 +3,7 @@ import { Fish, Menu, X, User } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
+import { supabase } from '@/lib/supabase';
 
 export function Navbar() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -17,17 +18,54 @@ export function Navbar() {
 
     // Load company settings for all visitors
     useEffect(() => {
-        // Try to load default settings (super_admin settings for localhost:3000)
-        const defaultSettings = localStorage.getItem('default_company_settings');
-        if (defaultSettings) {
-            const parsed = JSON.parse(defaultSettings);
-            setCompanyLogo(parsed.logoUrl || null);
-            setCompanyTitle(parsed.title || null);
-        }
+        loadCompanyData();
+    }, [companyName]);
 
-        // TODO: For custom domains like /:companyName, load company-specific settings
-        // based on the URL slug
-    }, []);
+    const loadCompanyData = async () => {
+        try {
+            if (!companyName) {
+                const { data: defaultSettings } = await supabase
+                    .from('company_settings')
+                    .select('logo_url')
+                    .not('logo_url', 'is', null)
+                    .limit(1)
+                    .maybeSingle();
+
+                if (defaultSettings && defaultSettings.logo_url) {
+                    setCompanyLogo(defaultSettings.logo_url);
+                } else {
+                    setCompanyLogo(null);
+                }
+                setCompanyTitle(null);
+                return;
+            }
+
+            const { data: company } = await supabase
+                .from('users')
+                .select('id, name')
+                .eq('slug', companyName)
+                .eq('role', 'company')
+                .maybeSingle();
+
+            if (company) {
+                setCompanyTitle(company.name);
+
+                const { data: settings } = await supabase
+                    .from('company_settings')
+                    .select('logo_url')
+                    .eq('company_id', company.id)
+                    .maybeSingle();
+
+                if (settings && settings.logo_url) {
+                    setCompanyLogo(settings.logo_url);
+                } else {
+                    setCompanyLogo(null);
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao carregar dados da empresa na Navbar:', error);
+        }
+    };
 
     // Base path para links (com ou sem company slug)
     const basePath = companyName ? `/${companyName}` : '';
@@ -46,9 +84,9 @@ export function Navbar() {
             <div className="container mx-auto px-4">
                 <div className="flex items-center justify-between h-20">
                     {/* Logo */}
-                    <Link to="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity group">
+                    <Link to={basePath || "/"} className="flex items-center gap-3 hover:opacity-90 transition-opacity group">
                         {companyLogo ? (
-                            <img src={companyLogo} alt="Logo" className="h-12 w-12 object-contain" />
+                            <img src={companyLogo} alt={companyTitle || "Logo"} className="h-12 max-w-[200px] object-contain" />
                         ) : (
                             <div className="bg-blue-600 p-2 rounded-lg group-hover:bg-blue-500 transition-colors">
                                 <Fish className="w-6 h-6 text-white" />

@@ -1,23 +1,20 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { EventLogo, SponsorLogo, StageImage, ChampionGallery, Stage } from '@/types';
+import { SponsorLogo, StageImage, ChampionGallery, Stage } from '@/types';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { ImageUploader } from '@/components/admin/ImageUploader';
-import { Image as ImageIcon, Award, Star, MapPin, Trash2 } from 'lucide-react';
+import { Award, Star, MapPin, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
-import { useAuth } from '@/contexts/AuthContext';
 
-type TabId = 'event-logo' | 'sponsors' | 'stage-images' | 'champions';
+type TabId = 'sponsors' | 'stage-images' | 'champions';
 
 export function ImageManagement() {
-    const { currentUser } = useAuth();
-    const [activeTab, setActiveTab] = useState<TabId>('event-logo');
+    
+    const [activeTab, setActiveTab] = useState<TabId>('sponsors');
 
-    // Event Logos
-    const [eventLogos, setEventLogos] = useState<EventLogo[]>([]);
-    const [eventLogoName, setEventLogoName] = useState('');
+
 
     // Sponsor Logos
     const [sponsorLogos, setSponsorLogos] = useState<SponsorLogo[]>([]);
@@ -40,7 +37,6 @@ export function ImageManagement() {
     const [itemToDelete, setItemToDelete] = useState<{ id: string, type: string, imageUrl: string } | null>(null);
 
     useEffect(() => {
-        loadEventLogos();
         loadSponsorLogos();
         loadStages();
         loadChampionImages();
@@ -55,34 +51,6 @@ export function ImageManagement() {
     // ============================================
     // LOAD FUNCTIONS
     // ============================================
-
-    const loadEventLogos = async () => {
-        let query = supabase
-            .from('event_logos')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        // Filtrar por company_id se o usuário for uma empresa
-        if (currentUser?.role === 'company' && currentUser?.id) {
-            query = query.eq('company_id', currentUser.id);
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
-            console.error('Erro ao carregar logos:', error);
-            return;
-        }
-
-        setEventLogos((data || []).map((item: any) => ({
-            id: item.id,
-            name: item.name,
-            imageUrl: item.image_url,
-            isActive: item.is_active,
-            createdAt: new Date(item.created_at),
-            updatedAt: item.updated_at ? new Date(item.updated_at) : undefined
-        })));
-    };
 
     const loadSponsorLogos = async () => {
         const { data, error } = await supabase
@@ -179,68 +147,6 @@ export function ImageManagement() {
     // SAVE FUNCTIONS
     // ============================================
 
-    const handleEventLogoUpload = async (url: string) => {
-        if (!eventLogoName.trim()) {
-            alert('Digite um nome para o logo');
-            return;
-        }
-
-        const insertData: any = {
-            name: eventLogoName,
-            image_url: url,
-            is_active: false
-        };
-
-        // Adicionar company_id se o usuário for uma empresa
-        if (currentUser?.role === 'company' && currentUser?.id) {
-            insertData.company_id = currentUser.id;
-        }
-
-        const { error } = await supabase
-            .from('event_logos')
-            .insert(insertData);
-
-        if (error) {
-            console.error('Erro ao salvar logo:', error);
-            alert('Erro ao salvar logo');
-            return;
-        }
-
-        setEventLogoName('');
-        loadEventLogos();
-    };
-
-    const handleSetActiveLogo = async (logoId: string) => {
-        // Desativar outros logos (apenas da mesma empresa se for um usuário de empresa)
-        let deactivateQuery = supabase
-            .from('event_logos')
-            .update({ is_active: false })
-            .neq('id', logoId);
-
-        if (currentUser?.role === 'company' && currentUser?.id) {
-            deactivateQuery = deactivateQuery.eq('company_id', currentUser.id);
-        }
-
-        const { error } = await deactivateQuery;
-
-        if (error) {
-            console.error('Erro ao desativar logos:', error);
-            return;
-        }
-
-        const { error: activateError } = await supabase
-            .from('event_logos')
-            .update({ is_active: true })
-            .eq('id', logoId);
-
-        if (activateError) {
-            console.error('Erro ao ativar logo:', activateError);
-            return;
-        }
-
-        loadEventLogos();
-    };
-
     const handleSponsorUpload = async (url: string) => {
         if (!sponsorName.trim()) {
             alert('Digite o nome do patrocinador');
@@ -330,11 +236,7 @@ export function ImageManagement() {
         const path = imageUrl.split('/').pop();
 
         try {
-            if (type === 'event-logo') {
-                if (path) await supabase.storage.from('event-logos').remove([path]);
-                await supabase.from('event_logos').delete().eq('id', id);
-                loadEventLogos();
-            } else if (type === 'sponsor') {
+            if (type === 'sponsor') {
                 if (path) await supabase.storage.from('sponsor-logos').remove([path]);
                 await supabase.from('sponsor_logos').delete().eq('id', id);
                 loadSponsorLogos();
@@ -360,8 +262,7 @@ export function ImageManagement() {
     // RENDER
     // ============================================
 
-    const tabs = [
-        { id: 'event-logo' as TabId, label: 'Logo da Empresa', icon: <ImageIcon className="w-5 h-5" /> },
+        const tabs = [
         { id: 'sponsors' as TabId, label: 'Patrocinadores', icon: <Award className="w-5 h-5" /> },
         { id: 'stage-images' as TabId, label: 'Imagens das Etapas', icon: <MapPin className="w-5 h-5" /> },
         { id: 'champions' as TabId, label: 'Galeria de Campeões', icon: <Star className="w-5 h-5" /> },
@@ -398,56 +299,6 @@ export function ImageManagement() {
 
             {/* Content */}
             <div className="space-y-6">
-                {/* EVENT LOGO TAB */}
-                {activeTab === 'event-logo' && (
-                    <>
-                        <Card>
-                            <h2 className="text-xl font-semibold mb-4">Novo Logo da Empresa</h2>
-                            <div className="space-y-4">
-                                <Input
-                                    label="Nome do Logo"
-                                    value={eventLogoName}
-                                    onChange={(e) => setEventLogoName(e.target.value)}
-                                    placeholder="Ex: Logo Torneio 2025"
-                                />
-                                <ImageUploader
-                                    bucket="event-logos"
-                                    onUploadComplete={handleEventLogoUpload}
-                                    recommendedSize={{ width: 400, height: 300 }}
-                                    label="Logo para Fichas PDF"
-                                />
-                            </div>
-                        </Card>
-
-                        <Card>
-                            <h2 className="text-xl font-semibold mb-4">Logos Cadastrados</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {eventLogos.map(logo => (
-                                    <div key={logo.id} className="border rounded-lg p-4 space-y-2">
-                                        <img src={logo.imageUrl} alt={logo.name} className="w-full h-32 object-contain bg-gray-100 rounded" />
-                                        <p className="font-medium">{logo.name}</p>
-                                        <div className="flex gap-2">
-                                            <Button
-                                                variant={logo.isActive ? 'primary' : 'outline'}
-                                                onClick={() => handleSetActiveLogo(logo.id)}
-                                                className="flex-1"
-                                            >
-                                                {logo.isActive ? '✓ Ativo' : 'Ativar'}
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                onClick={() => handleDeleteClick(logo.id, 'event-logo', logo.imageUrl)}
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </Card>
-                    </>
-                )}
-
                 {/* SPONSORS TAB */}
                 {activeTab === 'sponsors' && (
                     <>

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button';
 import {
     LayoutDashboard,
     Image,
+    Globe,
     Trophy,
     MapPin,
     Users,
@@ -36,8 +37,8 @@ export function Sidebar() {
             roles: ['super_admin', 'judge', 'captain', 'company'],
         },
         {
-            icon: Image,
-            label: 'Carrossel',
+            icon: Globe,
+            label: 'Site',
             path: '/admin/carousel',
             roles: ['super_admin', 'company'],
         },

@@ -502,10 +502,10 @@ export function TeamRegistration() {
                                                     placeholder="Apelido"
                                                 />
                                                 <Input
-                                                    label="RG"
+                                                    label="RG ou CPF"
                                                     value={member.rg}
                                                     onChange={(e) => updateMember(index, 'rg', e.target.value)}
-                                                    placeholder="00.000.000-0"
+                                                    placeholder="Digite o RG ou CPF"
                                                 />
                                             </div>
                                         </div>

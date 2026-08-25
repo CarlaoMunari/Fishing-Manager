@@ -8,6 +8,7 @@ export interface User {
     name: string;
     role: UserRole;
     slug?: string;
+    mustChangePassword?: boolean;
     permissions?: {
         circuits: boolean;
         stages: boolean;

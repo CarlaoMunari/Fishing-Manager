@@ -29,6 +29,7 @@ import { UserManagement } from './pages/admin/UserManagement';
 import { CompanySettings } from './pages/admin/CompanySettings';
 import { PaymentManagement } from './pages/admin/PaymentManagement';
 import { LocationTracking } from './pages/admin/LocationTracking';
+import { FirstAccessPasswordChange } from './pages/admin/FirstAccessPasswordChange';
 
 function App() {
     return (
@@ -43,6 +44,14 @@ function App() {
                             <Route path="/login" element={<LoginPage />} />
 
                             {/* Admin Routes - Protected */}
+                            <Route
+                                path="/admin/change-password"
+                                element={
+                                    <ProtectedRoute allowedRoles={['super_admin', 'company', 'judge', 'captain']}>
+                                        <FirstAccessPasswordChange />
+                                    </ProtectedRoute>
+                                }
+                            />
                             <Route
                                 path="/admin"
                                 element={
