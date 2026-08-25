@@ -12,6 +12,65 @@ import { Modal } from '@/components/ui/Modal';
 import { Plus, Trash2, Upload, Save, Globe, Image as ImageIcon, Phone, Mail, MapPin, Instagram, Facebook, Youtube, Layout } from 'lucide-react';
 import { ImageUploader } from '@/components/admin/ImageUploader';
 
+
+// Função para redimensionamento e otimização inteligente para celular e computador
+const processImageForCarousel = (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                const targetWidth = 1600;
+                const targetHeight = 600;
+
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
+
+                if (ctx) {
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+
+                    const imgAspect = img.width / img.height;
+                    const targetAspect = targetWidth / targetHeight;
+
+                    let renderWidth = targetWidth;
+                    let renderHeight = targetHeight;
+                    let offsetX = 0;
+                    let offsetY = 0;
+
+                    if (imgAspect > targetAspect) {
+                        renderWidth = targetHeight * imgAspect;
+                        offsetX = (targetWidth - renderWidth) / 2;
+                    } else {
+                        renderHeight = targetWidth / imgAspect;
+                        offsetY = (targetHeight - renderHeight) / 2;
+                    }
+
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillRect(0, 0, targetWidth, targetHeight);
+                    ctx.drawImage(img, offsetX, offsetY, renderWidth, renderHeight);
+                }
+
+                canvas.toBlob(
+                    (blob) => {
+                        if (blob) resolve(blob);
+                        else reject(new Error('Erro ao converter imagem'));
+                    },
+                    'image/jpeg',
+                    0.90
+                );
+            };
+            img.onerror = () => reject(new Error('Erro ao carregar imagem'));
+            img.src = event.target?.result as string;
+        };
+        reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
+        reader.readAsDataURL(file);
+    });
+};
+
 export function CarouselManagement() {
     const { companyId } = useCompany();
     const { currentUser } = useAuth();
@@ -166,13 +225,22 @@ export function CarouselManagement() {
 
         setSaving(true);
         try {
-            const fileExt = selectedFile.name.split('.').pop();
-            const fileName = `${Date.now()}.${fileExt}`;
+            let fileToUpload: File | Blob = selectedFile;
+            try {
+                fileToUpload = await processImageForCarousel(selectedFile);
+            } catch (procErr) {
+                console.warn('Fallback para imagem original:', procErr);
+            }
+
+            const fileName = `${Date.now()}.jpg`;
             const filePath = `carousel/${fileName}`;
 
             const { error: uploadError } = await supabase.storage
                 .from('images')
-                .upload(filePath, selectedFile);
+                .upload(filePath, fileToUpload, {
+                    contentType: 'image/jpeg',
+                    upsert: true
+                });
 
             if (uploadError) throw uploadError;
 
@@ -500,8 +568,8 @@ export function CarouselManagement() {
                                 <span className="text-sm text-gray-600">
                                     Clique para selecionar uma imagem
                                 </span>
-                                <span className="text-xs text-gray-500 font-medium">
-                                    Tamanho ideal: Qualquer largura x 600px altura (ex: 1600x600, 1920x600)
+                                <span className="text-xs text-blue-600 font-semibold bg-blue-50 px-3 py-1 rounded-full border border-blue-200 mt-1">
+                                    ✨ Redimensionamento inteligente automático para Celular & Computador ativado
                                 </span>
                             </label>
                         </div>

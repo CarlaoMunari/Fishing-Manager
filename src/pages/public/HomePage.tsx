@@ -225,7 +225,7 @@ export function HomePage() {
             <Navbar />
 
             {/* Hero Section - Pure Carousel - Responsivo */}
-            <div className="relative h-[400px] sm:h-[500px] md:h-[600px] overflow-hidden">
+            <div className="relative h-[220px] xs:h-[280px] sm:h-[420px] md:h-[550px] lg:h-[650px] overflow-hidden bg-slate-950">
                 <div className="absolute inset-0 z-0">
                     {carouselImages.map((image, index) => {
                         const ImageWrapper = image.link ? 'a' : 'div';
@@ -241,7 +241,7 @@ export function HomePage() {
                                 <img
                                     src={image.url}
                                     alt={`Slide ${index + 1}`}
-                                    className="w-full h-full object-contain bg-slate-900"
+                                    className="w-full h-full object-cover object-center bg-slate-950"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-900/50"></div>
                             </ImageWrapper>
