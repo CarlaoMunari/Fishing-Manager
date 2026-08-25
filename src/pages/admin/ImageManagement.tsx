@@ -7,10 +7,12 @@ import { Button } from '@/components/ui/Button';
 import { ImageUploader } from '@/components/admin/ImageUploader';
 import { Award, Star, MapPin, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
+import { useAuth } from '@/contexts/AuthContext';
 
 type TabId = 'sponsors' | 'stage-images' | 'champions';
 
 export function ImageManagement() {
+    const { currentUser } = useAuth();
     
     const [activeTab, setActiveTab] = useState<TabId>('sponsors');
 
@@ -53,10 +55,11 @@ export function ImageManagement() {
     // ============================================
 
     const loadSponsorLogos = async () => {
-        const { data, error } = await supabase
-            .from('sponsor_logos')
-            .select('*')
-            .order('display_order', { ascending: true });
+        let query = supabase.from('sponsor_logos').select('*');
+        if (currentUser?.role === 'company' && currentUser?.id) {
+            query = query.eq('company_id', currentUser.id);
+        }
+        const { data, error } = await query.order('display_order', { ascending: true });
 
         if (error) {
             console.error('Erro ao carregar patrocinadores:', error);
@@ -153,15 +156,20 @@ export function ImageManagement() {
             return;
         }
 
+        const insertData: any = {
+            name: sponsorName,
+            image_url: url,
+            link_url: sponsorLink || null,
+            display_order: sponsorLogos.length,
+            active: true
+        };
+        if (currentUser?.role === 'company' && currentUser?.id) {
+            insertData.company_id = currentUser.id;
+        }
+
         const { error } = await supabase
             .from('sponsor_logos')
-            .insert({
-                name: sponsorName,
-                image_url: url,
-                link_url: sponsorLink || null,
-                display_order: sponsorLogos.length,
-                active: true
-            });
+            .insert(insertData);
 
         if (error) {
             console.error('Erro ao salvar patrocinador:', error);
