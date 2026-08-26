@@ -26,7 +26,7 @@ export function HomePage() {
     const [stats, setStats] = useState<Stats>({ circuits: 0, fishPreserved: 0, teams: 0, stages: 0 });
     const [upcomingStages, setUpcomingStages] = useState<StageEvent[]>([]);
     const [loading, setLoading] = useState(true);
-    const [carouselImages, setCarouselImages] = useState<Array<{ url: string, link?: string }>>([]);
+    const [carouselImages, setCarouselImages] = useState<Array<{ url: string, mobileUrl?: string, link?: string }>>([]);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [sponsorLogos, setSponsorLogos] = useState<any[]>([]);
     const [activeStageId, setActiveStageId] = useState<string | null>(null);
@@ -96,6 +96,7 @@ export function HomePage() {
             if (data && data.length > 0) {
                 setCarouselImages(data.map((item: any) => ({
                     url: item.url,
+                    mobileUrl: item.mobile_url,
                     link: item.link_url
                 })));
             } else {
@@ -224,26 +225,31 @@ export function HomePage() {
         <div className="min-h-screen bg-gray-50 flex flex-col">
             <Navbar />
 
-            {/* Hero Section - Pure Carousel - Responsivo */}
-            <div className="relative h-[220px] xs:h-[280px] sm:h-[420px] md:h-[550px] lg:h-[650px] overflow-hidden bg-slate-950">
-                <div className="absolute inset-0 z-0">
+            {/* Hero Section - Pure Carousel - Suporte Desktop & Mobile Separados */}
+            <div className="relative w-full bg-slate-950">
+                <div className="relative w-full overflow-hidden flex items-center justify-center min-h-[140px]">
                     {carouselImages.map((image, index) => {
                         const ImageWrapper = image.link ? 'a' : 'div';
                         const imageProps = image.link ? { href: image.link, target: '_blank', rel: 'noopener noreferrer' } : {};
+                        const mUrl = image.mobileUrl;
 
                         return (
                             <ImageWrapper
                                 key={index}
                                 {...imageProps}
-                                className={`absolute inset-0 transition-opacity duration-1000 ${index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+                                className={`w-full transition-opacity duration-700 ${index === currentImageIndex ? 'block opacity-100' : 'hidden opacity-0'
                                     } ${image.link ? 'cursor-pointer' : ''}`}
                             >
-                                <img
-                                    src={image.url}
-                                    alt={`Slide ${index + 1}`}
-                                    className="w-full h-full object-cover object-center bg-slate-950"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-900/50"></div>
+                                <picture className="w-full h-auto block">
+                                    {mUrl && (
+                                        <source media="(max-width: 768px)" srcSet={mUrl} />
+                                    )}
+                                    <img
+                                        src={image.url}
+                                        alt={`Slide ${index + 1}`}
+                                        className="w-full h-auto max-h-[650px] object-contain mx-auto block"
+                                    />
+                                </picture>
                             </ImageWrapper>
                         );
                     })}
