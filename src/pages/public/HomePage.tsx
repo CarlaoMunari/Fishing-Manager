@@ -82,7 +82,7 @@ export function HomePage() {
         try {
             let query = supabase
                 .from('carousel_images')
-                .select('url, link_url')
+                .select('url, mobile_url, link_url')
                 .order('order', { ascending: true });
 
             if (cId) {

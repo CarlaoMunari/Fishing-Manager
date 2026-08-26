@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Modal } from '@/components/ui/Modal';
-import { Plus, Trash2, Upload, Save, Globe, Image as ImageIcon, Phone, Mail, MapPin, Instagram, Facebook, Youtube, Layout } from 'lucide-react';
+import { Plus, Trash2, Upload, Save, Globe, Image as ImageIcon, Phone, Mail, MapPin, Instagram, Facebook, Youtube, Layout, Monitor, Smartphone } from 'lucide-react';
 import { ImageUploader } from '@/components/admin/ImageUploader';
 
 
@@ -44,6 +44,8 @@ export function CarouselManagement() {
     const [linkUrl, setLinkUrl] = useState('');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState('');
+    const [selectedMobileFile, setSelectedMobileFile] = useState<File | null>(null);
+    const [mobilePreviewUrl, setMobilePreviewUrl] = useState('');
     const [selectedCompanyId, setSelectedCompanyId] = useState('');
 
     useEffect(() => {
@@ -162,31 +164,55 @@ export function CarouselManagement() {
         }
     };
 
+    const handleMobileFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setSelectedMobileFile(file);
+            setMobilePreviewUrl(URL.createObjectURL(file));
+        }
+    };
+
     const handleAddImage = async () => {
         if (!selectedFile || !altText) return;
 
         setSaving(true);
         try {
+            // 1. Upload Desktop
             const fileExt = selectedFile.name.split('.').pop();
-            const fileName = `${Date.now()}.${fileExt}`;
-            const filePath = `carousel/${fileName}`;
-
+            const fileName = `carousel/desktop_${Date.now()}.${fileExt}`;
             const { error: uploadError } = await supabase.storage
                 .from('images')
-                .upload(filePath, selectedFile, {
-                    upsert: true
-                });
+                .upload(fileName, selectedFile, { upsert: true });
 
             if (uploadError) throw uploadError;
 
             const { data: { publicUrl } } = supabase.storage
                 .from('images')
-                .getPublicUrl(filePath);
+                .getPublicUrl(fileName);
 
+            // 2. Upload Mobile (se fornecido)
+            let mobilePublicUrl = null;
+            if (selectedMobileFile) {
+                const mobileExt = selectedMobileFile.name.split('.').pop();
+                const mobileFileName = `carousel/mobile_${Date.now()}.${mobileExt}`;
+                const { error: mobileUploadError } = await supabase.storage
+                    .from('images')
+                    .upload(mobileFileName, selectedMobileFile, { upsert: true });
+
+                if (!mobileUploadError) {
+                    const { data: { publicUrl: mUrl } } = supabase.storage
+                        .from('images')
+                        .getPublicUrl(mobileFileName);
+                    mobilePublicUrl = mUrl;
+                }
+            }
+
+            // 3. Salvar no banco
             const { error: dbError } = await supabase
                 .from('carousel_images')
                 .insert({
                     url: publicUrl,
+                    mobile_url: mobilePublicUrl,
                     alt: altText,
                     link_url: linkUrl || null,
                     order: images.length,
@@ -198,6 +224,8 @@ export function CarouselManagement() {
             setModalOpen(false);
             setSelectedFile(null);
             setPreviewUrl('');
+            setSelectedMobileFile(null);
+            setMobilePreviewUrl('');
             setAltText('');
             setLinkUrl('');
             setSelectedCompanyId('');
@@ -453,29 +481,53 @@ export function CarouselManagement() {
                         </div>
                     ) : (
                         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                            {images.map((image) => (
-                                <Card key={image.id} className="overflow-hidden border hover:shadow-md transition-shadow">
-                                    <img
-                                        src={image.url}
-                                        alt={image.alt}
-                                        className="w-full h-48 object-cover rounded-t-lg mb-3"
-                                    />
-                                    <div className="p-3">
-                                        <p className="text-sm font-semibold text-gray-800 mb-1 truncate">{image.alt}</p>
-                                        {image.link_url && (
-                                            <p className="text-xs text-blue-600 truncate mb-3">{image.link_url}</p>
-                                        )}
-                                        <Button
-                                            variant="danger"
-                                            onClick={() => handleDeleteClick(image.id, image.url)}
-                                            className="w-full mt-2"
-                                        >
-                                            <Trash2 className="w-4 h-4 mr-2" />
-                                            Excluir Imagem
-                                        </Button>
-                                    </div>
-                                </Card>
-                            ))}
+                            {images.map((image) => {
+                                const mUrl = (image as any).mobile_url || (image as any).mobileUrl;
+                                return (
+                                    <Card key={image.id} className="overflow-hidden border hover:shadow-md transition-shadow">
+                                        <div className="relative">
+                                            <img
+                                                src={image.url}
+                                                alt={image.alt}
+                                                className="w-full h-44 object-cover rounded-t-lg"
+                                            />
+                                            <span className="absolute top-2 left-2 bg-slate-900/80 text-white text-xs font-semibold px-2.5 py-1 rounded flex items-center gap-1">
+                                                <Monitor className="w-3.5 h-3.5 text-blue-400" /> Desktop
+                                            </span>
+                                            {mUrl && (
+                                                <span className="absolute top-2 right-2 bg-emerald-600/90 text-white text-xs font-semibold px-2.5 py-1 rounded flex items-center gap-1">
+                                                    <Smartphone className="w-3.5 h-3.5" /> Mobile Ativo
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="p-4 space-y-3">
+                                            <p className="text-sm font-bold text-gray-900 truncate">{image.alt}</p>
+                                            {mUrl ? (
+                                                <div className="flex items-center gap-2 p-2 bg-emerald-50 border border-emerald-200 rounded">
+                                                    <img src={mUrl} alt="Mobile preview" className="w-8 h-10 object-cover rounded border" />
+                                                    <span className="text-xs text-emerald-800 font-medium">Imagem exclusiva para Celular ativa</span>
+                                                </div>
+                                            ) : (
+                                                <div className="p-2 bg-gray-50 border rounded text-xs text-gray-500">
+                                                    Sem versão celular específica (usa a versão desktop)
+                                                </div>
+                                            )}
+                                            {image.link_url && (
+                                                <p className="text-xs text-blue-600 truncate">{image.link_url}</p>
+                                            )}
+                                            <Button
+                                                variant="danger"
+                                                onClick={() => handleDeleteClick(image.id, image.url)}
+                                                className="w-full mt-2"
+                                            >
+                                                <Trash2 className="w-4 h-4 mr-2" />
+                                                Excluir Imagem
+                                            </Button>
+                                        </div>
+                                    </Card>
+                                );
+                            })}
                         </div>
                     )}
                 </Card>
@@ -486,41 +538,65 @@ export function CarouselManagement() {
                     onClose={() => setModalOpen(false)}
                     title="Adicionar Imagem ao Carrossel"
                 >
-                    <div className="space-y-4">
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                            <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleFileSelect}
-                                className="hidden"
-                                id="carousel-image-upload"
-                            />
-                            <label
-                                htmlFor="carousel-image-upload"
-                                className="cursor-pointer flex flex-col items-center gap-2"
-                            >
-                                <Upload className="w-8 h-8 text-gray-400" />
-                                <span className="text-sm text-gray-600">
-                                    Clique para selecionar uma imagem
-                                </span>
-                                <span className="text-xs text-gray-500 font-medium">
-                                    Tamanho ideal: Qualquer largura x 600px altura (ex: 1600x600, 1920x600)
-                                </span>
+                    <div className="space-y-6">
+                        {/* 🖥️ UPLOAD DESKTOP */}
+                        <div className="p-4 bg-slate-50 border rounded-lg space-y-3">
+                            <label className="block text-sm font-bold text-slate-800 flex items-center gap-2">
+                                <Monitor className="w-4 h-4 text-blue-600" />
+                                1. Imagem para Computador / Desktop (Obrigatória)
                             </label>
+                            <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center bg-white">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleFileSelect}
+                                    className="hidden"
+                                    id="carousel-image-upload"
+                                />
+                                <label htmlFor="carousel-image-upload" className="cursor-pointer flex flex-col items-center gap-1">
+                                    <Upload className="w-6 h-6 text-slate-400" />
+                                    <span className="text-sm text-slate-700 font-medium">Clique para escolher a imagem do Computador</span>
+                                    <span className="text-xs text-slate-500">Ideal: Formato Horizontal (ex: 1600x600px ou 1920x600px)</span>
+                                </label>
+                            </div>
+                            {previewUrl && (
+                                <div className="mt-2">
+                                    <span className="text-xs font-semibold text-slate-600 block mb-1">Preview Desktop:</span>
+                                    <img src={previewUrl} alt="Preview Desktop" className="w-full h-32 object-cover rounded border" />
+                                </div>
+                            )}
                         </div>
 
-                        {previewUrl && (
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Preview:
-                                </label>
-                                <img
-                                    src={previewUrl}
-                                    alt="Preview"
-                                    className="w-full h-48 object-cover rounded-lg border"
+                        {/* 📱 UPLOAD MOBILE */}
+                        <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-lg space-y-3">
+                            <label className="block text-sm font-bold text-emerald-900 flex items-center gap-2">
+                                <Smartphone className="w-4 h-4 text-emerald-600" />
+                                2. Imagem para Celular / Mobile (Recomendada)
+                            </label>
+                            <p className="text-xs text-emerald-700">
+                                Envie uma imagem com formato <strong>Vertical / Quadrado (ex: 800x1000px ou 600x800px)</strong> formatada especialmente para telas de celulares.
+                            </p>
+                            <div className="border-2 border-dashed border-emerald-300 rounded-lg p-4 text-center bg-white">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleMobileFileSelect}
+                                    className="hidden"
+                                    id="carousel-mobile-image-upload"
                                 />
+                                <label htmlFor="carousel-mobile-image-upload" className="cursor-pointer flex flex-col items-center gap-1">
+                                    <Upload className="w-6 h-6 text-emerald-500" />
+                                    <span className="text-sm text-emerald-800 font-medium">Clique para escolher a arte do Celular</span>
+                                    <span className="text-xs text-emerald-600 font-medium">Formato ideal: 800x1000px ou 600x800px (Vertical)</span>
+                                </label>
                             </div>
-                        )}
+                            {mobilePreviewUrl && (
+                                <div className="mt-2">
+                                    <span className="text-xs font-semibold text-emerald-700 block mb-1">Preview Celular:</span>
+                                    <img src={mobilePreviewUrl} alt="Preview Mobile" className="h-40 w-auto max-w-[200px] object-cover rounded border mx-auto" />
+                                </div>
+                            )}
+                        </div>
 
                         {currentUser?.role === 'super_admin' && (
                             <div>
