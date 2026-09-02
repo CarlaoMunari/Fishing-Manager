@@ -17,6 +17,8 @@ import { TeamRegistration } from "./pages/public/TeamRegistration";
 import { Checkout } from "./pages/public/Checkout";
 import { GPSTracking } from "./pages/public/GPSTracking";
 import { FishermanDashboard } from "./pages/public/FishermanDashboard";
+import { CompanySelector } from "./pages/public/CompanySelector";
+import { MultiCompanyRegistration } from "./pages/public/MultiCompanyRegistration";
 import { LoginPage } from "./pages/LoginPage";
 
 // Admin Pages
@@ -44,6 +46,8 @@ function App() {
                         <Routes>
                             {/* Public Routes */}
                             <Route path="/" element={<LandingPage />} />
+                            <Route path="/empresas" element={<CompanySelector />} />
+                            <Route path="/inscricao" element={<MultiCompanyRegistration />} />
                             <Route path="/gps" element={<GPSTracking />} />
                             <Route path="/pescador" element={<FishermanDashboard />} />
                             <Route path="/login" element={<LoginPage />} />
@@ -189,7 +193,7 @@ function App() {
                             <Route path="*" element={<Navigate to="/" replace />} />
                         </Routes>
 
-                        {/* Mobile Enhancements */}
+                        {/* Mobile Bottom Navigation */}
                         <MobileBottomNav />
                         <InstallPWA />
                     </ThemeProvider>

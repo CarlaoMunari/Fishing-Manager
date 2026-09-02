@@ -1,27 +1,11 @@
 ﻿import { Link, useLocation, useParams } from "react-router-dom";
-import { Home, Calendar, Trophy, MapPin, User, Anchor } from "lucide-react";
-import { useAuth } from "../../contexts/AuthContext";
+import { Home, Building2, UserPlus, Trophy, MapPin } from "lucide-react";
 
 export function MobileBottomNav() {
     const location = useLocation();
     const { companyName } = useParams();
-    const { currentUser } = useAuth();
 
     const basePath = companyName ? `/${companyName}` : "";
-
-    const userTabLabel = currentUser
-        ? currentUser.role === "captain"
-            ? "Área Pescador"
-            : "Painel Admin"
-        : "Login";
-
-    const userTabPath = currentUser
-        ? currentUser.role === "captain"
-            ? "/pescador"
-            : "/admin"
-        : "/login";
-
-    const userTabIcon = currentUser?.role === "captain" ? Anchor : User;
 
     const navItems = [
         {
@@ -31,9 +15,14 @@ export function MobileBottomNav() {
             exact: true
         },
         {
-            label: "Etapas",
-            path: `${basePath}/etapas`,
-            icon: Calendar
+            label: "Empresas",
+            path: "/empresas",
+            icon: Building2
+        },
+        {
+            label: "Inscrição",
+            path: "/inscricao",
+            icon: UserPlus
         },
         {
             label: "Ranking",
@@ -45,11 +34,6 @@ export function MobileBottomNav() {
             path: "/gps",
             icon: MapPin,
             highlight: true
-        },
-        {
-            label: userTabLabel,
-            path: userTabPath,
-            icon: userTabIcon
         }
     ];
 
@@ -62,7 +46,7 @@ export function MobileBottomNav() {
 
     return (
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 shadow-2xl safe-bottom text-white">
-            <div className="flex items-center justify-around h-16 px-2">
+            <div className="flex items-center justify-around h-16 px-1">
                 {navItems.map((item) => {
                     const Icon = item.icon;
                     const active = isActive(item.path, item.exact);

@@ -1,8 +1,10 @@
 ﻿import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
-import { Circuit, Stage } from "@/types";
-import { Trophy, Award, MapPin } from "lucide-react";
+import { supabase } from "../../lib/supabase";
+import { Circuit, Stage } from "../../types";
+import { Trophy, Award, MapPin, Building2 } from "lucide-react";
+import { Navbar } from "../../components/public/Navbar";
+import { Footer } from "../../components/public/Footer";
 
 interface TeamRanking {
     teamName: string;
@@ -14,6 +16,10 @@ interface TeamRanking {
 export function RankingPage() {
     const { companyName } = useParams();
     const [searchParams] = useSearchParams();
+
+    const [companies, setCompanies] = useState<any[]>([]);
+    const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
+
     const [circuits, setCircuits] = useState<Circuit[]>([]);
     const [selectedCircuit, setSelectedCircuit] = useState<string>("");
     const [stages, setStages] = useState<Stage[]>([]);
@@ -26,8 +32,14 @@ export function RankingPage() {
     const [biggestYellow, setBiggestYellow] = useState<{ team: string; size: number } | null>(null);
 
     useEffect(() => {
-        loadCompanyAndCircuits();
+        loadCompanies();
     }, [companyName]);
+
+    useEffect(() => {
+        if (selectedCompanyId) {
+            loadCircuits(selectedCompanyId);
+        }
+    }, [selectedCompanyId]);
 
     useEffect(() => {
         if (selectedCircuit) {
@@ -51,28 +63,38 @@ export function RankingPage() {
         }
     }, [selectedStage, stages]);
 
-    const loadCompanyAndCircuits = async () => {
-        let currentCompanyId: string | null = null;
-
-        if (companyName) {
-            const { data: company } = await supabase
+    const loadCompanies = async () => {
+        try {
+            const { data } = await supabase
                 .from("users")
-                .select("id")
-                .eq("slug", companyName)
-                .single();
+                .select("id, name, slug")
+                .eq("role", "company")
+                .order("name", { ascending: true });
 
-            if (company) {
-                currentCompanyId = company.id;
-            } else {
-                console.error("Empresa não encontrada:", companyName);
-                return;
+            if (data) {
+                setCompanies(data);
+
+                if (companyName) {
+                    const found = data.find((c) => c.slug === companyName);
+                    if (found) {
+                        setSelectedCompanyId(found.id);
+                    } else if (data.length > 0) {
+                        setSelectedCompanyId(data[0].id);
+                    }
+                } else if (data.length > 0) {
+                    setSelectedCompanyId(data[0].id);
+                }
             }
+        } catch (err) {
+            console.error("Erro ao carregar empresas:", err);
         }
+    };
 
+    const loadCircuits = async (companyId: string) => {
         let query = supabase.from("circuits").select("*").eq("active", true);
 
-        if (currentCompanyId) {
-            query = query.eq("company_id", currentCompanyId);
+        if (companyId) {
+            query = query.eq("company_id", companyId);
         }
 
         const { data } = await query.order("year", { ascending: false });
@@ -91,6 +113,11 @@ export function RankingPage() {
                 const paramCircuitId = searchParams.get("circuitId");
                 const found = circuitsData.find((c: any) => c.id === paramCircuitId);
                 setSelectedCircuit(found ? found.id : circuitsData[0].id);
+            } else {
+                setSelectedCircuit("");
+                setStages([]);
+                setStageRanking([]);
+                setGeneralRanking([]);
             }
         }
     };
@@ -144,8 +171,8 @@ export function RankingPage() {
                 const ranking = results
                     .filter((r: any) => r.average_score > 0)
                     .map((r: any) => ({
-                        teamName: r.team.team_name,
-                        city: r.team.city,
+                        teamName: r.team ? r.team.team_name : "Equipe Sem Nome",
+                        city: r.team ? r.team.city : "",
                         score: r.average_score,
                     }))
                     .sort((a, b) => b.score - a.score)
@@ -159,7 +186,7 @@ export function RankingPage() {
                 if (blues.length > 0) {
                     const maxBlue = blues.reduce((max, r) => (r.biggest_blue > max.biggest_blue ? r : max));
                     setBiggestBlue({
-                        team: maxBlue.team.team_name,
+                        team: maxBlue.team ? maxBlue.team.team_name : "",
                         size: maxBlue.biggest_blue,
                     });
                 } else {
@@ -169,7 +196,7 @@ export function RankingPage() {
                 if (yellows.length > 0) {
                     const maxYellow = yellows.reduce((max, r) => (r.biggest_yellow > max.biggest_yellow ? r : max));
                     setBiggestYellow({
-                        team: maxYellow.team.team_name,
+                        team: maxYellow.team ? maxYellow.team.team_name : "",
                         size: maxYellow.biggest_yellow,
                     });
                 } else {
@@ -209,7 +236,7 @@ export function RankingPage() {
 
                 results.forEach((r: any) => {
                     const teamId = r.team_id;
-                    const total = r.fish_measurements.reduce((sum: number, m: number) => sum + (m || 0), 0);
+                    const total = r.fish_measurements ? r.fish_measurements.reduce((sum: number, m: number) => sum + (m || 0), 0) : 0;
 
                     if (teamTotals.has(teamId)) {
                         const existing = teamTotals.get(teamId)!;
@@ -217,8 +244,8 @@ export function RankingPage() {
                         existing.count += 1;
                     } else {
                         teamTotals.set(teamId, {
-                            teamName: r.team.team_name,
-                            city: r.team.city,
+                            teamName: r.team ? r.team.team_name : "Equipe",
+                            city: r.team ? r.team.city : "",
                             total: total,
                             count: 1,
                         });
@@ -252,11 +279,13 @@ export function RankingPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 pb-mobile-nav">
+        <div className="min-h-screen bg-slate-50 flex flex-col pb-mobile-nav">
+            <Navbar />
+
             {/* Header */}
             <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white shadow-xl">
-                <div className="max-w-6xl mx-auto px-4 py-8">
-                    <div className="flex items-center gap-3 mb-4">
+                <div className="max-w-6xl mx-auto px-4 py-8 space-y-4">
+                    <div className="flex items-center gap-3">
                         <div className="bg-blue-600/30 p-3 rounded-2xl border border-blue-500/30 backdrop-blur-md">
                             <Trophy className="w-8 h-8 text-amber-400" />
                         </div>
@@ -265,27 +294,52 @@ export function RankingPage() {
                                 Rankings & Classificação
                             </h1>
                             <p className="text-xs md:text-sm text-blue-200">
-                                Acompanhe os resultados das etapas e circuito
+                                Selecione a empresa e o circuito para acompanhar a pontuação
                             </p>
                         </div>
                     </div>
 
-                    {/* Circuit Selector */}
-                    <div className="max-w-md">
-                        <label className="block text-xs font-semibold uppercase tracking-wider text-blue-300 mb-1.5">
-                            Selecione o Circuito
-                        </label>
-                        <select
-                            value={selectedCircuit}
-                            onChange={(e) => setSelectedCircuit(e.target.value)}
-                            className="w-full px-4 py-3 bg-slate-800/90 border border-slate-700 rounded-xl text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none"
-                        >
-                            {circuits.map((circuit) => (
-                                <option key={circuit.id} value={circuit.id}>
-                                    {circuit.name} - {circuit.year}
-                                </option>
-                            ))}
-                        </select>
+                    {/* Filter Selectors Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl">
+                        {!companyName && companies.length > 0 && (
+                            <div>
+                                <label className="block text-[11px] font-bold uppercase tracking-wider text-blue-300 mb-1 flex items-center gap-1">
+                                    <Building2 className="w-3.5 h-3.5 text-cyan-400" /> Empresa / Organizador
+                                </label>
+                                <select
+                                    value={selectedCompanyId}
+                                    onChange={(e) => setSelectedCompanyId(e.target.value)}
+                                    className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-white font-medium text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                                >
+                                    {companies.map((company) => (
+                                        <option key={company.id} value={company.id}>
+                                            {company.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-[11px] font-bold uppercase tracking-wider text-blue-300 mb-1 flex items-center gap-1">
+                                <Trophy className="w-3.5 h-3.5 text-amber-400" /> Circuito Ativo
+                            </label>
+                            <select
+                                value={selectedCircuit}
+                                onChange={(e) => setSelectedCircuit(e.target.value)}
+                                className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-white font-medium text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                            >
+                                {circuits.length === 0 ? (
+                                    <option value="">Nenhum circuito cadastrado</option>
+                                ) : (
+                                    circuits.map((circuit) => (
+                                        <option key={circuit.id} value={circuit.id}>
+                                            {circuit.name} - {circuit.year}
+                                        </option>
+                                    ))
+                                )}
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -302,7 +356,7 @@ export function RankingPage() {
                                     : "border-transparent text-gray-500 hover:text-gray-800"
                             }`}
                         >
-                            Por Etapa
+                            Ranking da Etapa Finalizada
                         </button>
                         <button
                             onClick={() => setActiveTab("general")}
@@ -312,14 +366,14 @@ export function RankingPage() {
                                     : "border-transparent text-gray-500 hover:text-gray-800"
                             }`}
                         >
-                            Classificação Geral
+                            Ranking Geral do Circuito
                         </button>
                     </div>
                 </div>
             </div>
 
             {/* Main Content Container */}
-            <div className="max-w-6xl mx-auto px-4 py-6">
+            <div className="max-w-6xl mx-auto px-4 py-6 flex-grow">
                 {loading ? (
                     <div className="text-center py-16">
                         <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto"></div>
@@ -330,18 +384,22 @@ export function RankingPage() {
                         {/* Stage Selector */}
                         <div className="mb-6">
                             <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
-                                Etapa Selecionada
+                                Escolha a Etapa Finalizada
                             </label>
                             <select
                                 value={selectedStage}
                                 onChange={(e) => setSelectedStage(e.target.value)}
-                                className="w-full max-w-md px-4 py-3 bg-white border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 font-medium text-gray-800"
+                                className="w-full max-w-md px-4 py-3 bg-white border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 font-medium text-gray-800 text-sm"
                             >
-                                {stages.map((stage) => (
-                                    <option key={stage.id} value={stage.id}>
-                                        {stage.name} - {stage.location} ({stage.date.toLocaleDateString("pt-BR")})
-                                    </option>
-                                ))}
+                                {stages.length === 0 ? (
+                                    <option value="">Nenhuma etapa disponível</option>
+                                ) : (
+                                    stages.map((stage) => (
+                                        <option key={stage.id} value={stage.id}>
+                                            {stage.name} - {stage.location} ({stage.date.toLocaleDateString("pt-BR")})
+                                        </option>
+                                    ))
+                                )}
                             </select>
                         </div>
 
@@ -350,7 +408,7 @@ export function RankingPage() {
                             <div className="bg-gradient-to-br from-blue-950 to-slate-900 border border-blue-800/50 rounded-2xl p-5 text-white shadow-lg relative overflow-hidden">
                                 <div className="flex items-center justify-between">
                                     <span className="text-xs font-bold text-blue-300 uppercase tracking-wider">
-                                        🔵 Maior Peixe Azul
+                                        🔵 Maior Peixe Azul da Etapa
                                     </span>
                                     <Award className="w-5 h-5 text-cyan-400" />
                                 </div>
@@ -362,14 +420,14 @@ export function RankingPage() {
                                         <p className="text-sm font-bold text-white mt-1 truncate">{biggestBlue.team}</p>
                                     </div>
                                 ) : (
-                                    <p className="text-xs text-blue-300/70 mt-3">Nenhum registro aprovado</p>
+                                    <p className="text-xs text-blue-300/70 mt-3">Nenhum registro de peixe azul</p>
                                 )}
                             </div>
 
                             <div className="bg-gradient-to-br from-amber-950 to-slate-900 border border-amber-800/50 rounded-2xl p-5 text-white shadow-lg relative overflow-hidden">
                                 <div className="flex items-center justify-between">
                                     <span className="text-xs font-bold text-amber-300 uppercase tracking-wider">
-                                        🟡 Maior Peixe Amarelo
+                                        🟡 Maior Peixe Amarelo da Etapa
                                     </span>
                                     <Award className="w-5 h-5 text-amber-400" />
                                 </div>
@@ -381,7 +439,7 @@ export function RankingPage() {
                                         <p className="text-sm font-bold text-white mt-1 truncate">{biggestYellow.team}</p>
                                     </div>
                                 ) : (
-                                    <p className="text-xs text-amber-300/70 mt-3">Nenhum registro aprovado</p>
+                                    <p className="text-xs text-amber-300/70 mt-3">Nenhum registro de peixe amarelo</p>
                                 )}
                             </div>
                         </div>
@@ -533,6 +591,8 @@ export function RankingPage() {
                     </>
                 )}
             </div>
+
+            <Footer />
         </div>
     );
 }
