@@ -16,6 +16,7 @@ import { RegulationsPage } from "./pages/public/RegulationsPage";
 import { TeamRegistration } from "./pages/public/TeamRegistration";
 import { Checkout } from "./pages/public/Checkout";
 import { GPSTracking } from "./pages/public/GPSTracking";
+import { FishermanDashboard } from "./pages/public/FishermanDashboard";
 import { LoginPage } from "./pages/LoginPage";
 
 // Admin Pages
@@ -44,6 +45,7 @@ function App() {
                             {/* Public Routes */}
                             <Route path="/" element={<LandingPage />} />
                             <Route path="/gps" element={<GPSTracking />} />
+                            <Route path="/pescador" element={<FishermanDashboard />} />
                             <Route path="/login" element={<LoginPage />} />
 
                             {/* Admin Routes - Protected */}

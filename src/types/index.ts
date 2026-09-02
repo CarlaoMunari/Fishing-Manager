@@ -1,5 +1,5 @@
-// User roles
-export type UserRole = 'super_admin' | 'judge' | 'captain' | 'company';
+﻿// User roles
+export type UserRole = "super_admin" | "judge" | "captain" | "company";
 
 // User interface
 export interface User {
@@ -44,7 +44,7 @@ export interface Stage {
     location: string;
     registrationFee: number;
     imageUrl?: string; // URL da imagem da etapa (opcional)
-    status: 'active' | 'finished'; // Controle de visibilidade
+    status: "active" | "finished"; // Controle de visibilidade
     createdAt: Date;
     // GPS Tracking fields
     gpsTrackingEnabled?: boolean;
@@ -57,13 +57,14 @@ export interface Stage {
 export interface TeamMember {
     name: string;        // Nome completo
     nickname: string;    // Apelido
-    rg: string;          // RG
+    rg: string;          // RG ou CPF
 }
 
 // Team interface
 export interface Team {
     id: string;
     stageId: string;
+    userId?: string;               // ID do usuario pescador/capitao proprietario
     teamName: string;              // Nome da equipe
     city: string;                  // Cidade da equipe
     responsibleName: string;       // Nome do responsável
@@ -72,7 +73,7 @@ export interface Team {
     responsiblePhone2?: string;    // Telefone secundário (opcional)
     members: TeamMember[];         // 4 membros: capitão, pescador1, pescador2, reserva
     paid: boolean;
-    paymentMethod?: 'pix' | 'credit_card';
+    paymentMethod?: "pix" | "credit_card";
     registeredAt: Date;
 }
 
@@ -83,7 +84,7 @@ export interface Result {
     stageId: string;
     circuitId: string;
     fishMeasurements: number[]; // Array of up to 6 measurements in cm
-    fishColors: ('blue' | 'yellow' | null)[]; // Cor de cada peixe
+    fishColors: ("blue" | "yellow" | null)[]; // Cor de cada peixe
     averageScore: number; // Calculated as sum / 6
     biggestBlue?: number; // Maior tucunaré azul da equipe
     biggestYellow?: number; // Maior tucunaré amarelo da equipe
@@ -116,11 +117,7 @@ export interface CircuitRankingEntry {
     totalScore: number;
 }
 
-// ============================================
-// GALERIA DE IMAGENS - Novos tipos
-// ============================================
-
-// Logo da empresa do evento (para fichas PDF)
+// Event Logo
 export interface EventLogo {
     id: string;
     name: string;
@@ -130,7 +127,7 @@ export interface EventLogo {
     updatedAt?: Date;
 }
 
-// Logo de patrocinador
+// Sponsor Logo
 export interface SponsorLogo {
     id: string;
     name: string;
@@ -142,7 +139,7 @@ export interface SponsorLogo {
     updatedAt?: Date;
 }
 
-// Imagem da etapa (800x800)
+// Stage Image
 export interface StageImage {
     id: string;
     stageId: string;
@@ -152,7 +149,7 @@ export interface StageImage {
     createdAt: Date;
 }
 
-// Foto da galeria de campeões
+// Champion Gallery
 export interface ChampionGallery {
     id: string;
     stageId?: string;
@@ -162,3 +159,4 @@ export interface ChampionGallery {
     displayOrder: number;
     createdAt: Date;
 }
+

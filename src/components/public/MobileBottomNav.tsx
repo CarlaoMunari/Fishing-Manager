@@ -1,5 +1,5 @@
 ﻿import { Link, useLocation, useParams } from "react-router-dom";
-import { Home, Calendar, Trophy, MapPin, User } from "lucide-react";
+import { Home, Calendar, Trophy, MapPin, User, Anchor } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
 export function MobileBottomNav() {
@@ -8,6 +8,20 @@ export function MobileBottomNav() {
     const { currentUser } = useAuth();
 
     const basePath = companyName ? `/${companyName}` : "";
+
+    const userTabLabel = currentUser
+        ? currentUser.role === "captain"
+            ? "Área Pescador"
+            : "Painel Admin"
+        : "Login";
+
+    const userTabPath = currentUser
+        ? currentUser.role === "captain"
+            ? "/pescador"
+            : "/admin"
+        : "/login";
+
+    const userTabIcon = currentUser?.role === "captain" ? Anchor : User;
 
     const navItems = [
         {
@@ -33,9 +47,9 @@ export function MobileBottomNav() {
             highlight: true
         },
         {
-            label: currentUser ? "Painel" : "Login",
-            path: currentUser ? "/admin" : "/login",
-            icon: User
+            label: userTabLabel,
+            path: userTabPath,
+            icon: userTabIcon
         }
     ];
 
