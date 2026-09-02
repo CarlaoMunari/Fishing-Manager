@@ -212,11 +212,7 @@ export function Checkout() {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            // Validar tipo de arquivo
-            if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
-                alert('Por favor, envie apenas imagens ou PDF');
-                return;
-            }
+            
             // Validar tamanho (5MB)
             if (file.size > 5 * 1024 * 1024) {
                 alert('Arquivo muito grande. Máximo 5MB');
@@ -249,24 +245,28 @@ export function Checkout() {
             }
 
             if (!targetCompanyId) {
-                throw new Error('Empresa não encontrada');
+                throw new Error('Empresa n�o encontrada');
             }
 
             // Upload do comprovante para Supabase Storage
-            const fileExt = proofFile.name.split('.').pop();
-            const fileName = `${team.id}-${Date.now()}.${fileExt}`;
-            const filePath = `payment-proofs/${fileName}`;
+            const rawExt = proofFile.name.split('.').pop() || 'png';
+            const safeExt = rawExt.toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+            const fileName = `${team.id}-${Date.now()}.${safeExt}`;
+            const storagePath = `payment-proofs/${fileName}`;
 
             const { error: uploadError } = await supabase.storage
                 .from('images')
-                .upload(filePath, proofFile);
+                .upload(storagePath, proofFile, { upsert: true });
 
-            if (uploadError) throw uploadError;
+            if (uploadError) {
+                console.error('Erro no upload do comprovante:', uploadError);
+                throw new Error(`Falha no upload do arquivo: ${uploadError.message}`);
+            }
 
-            // Obter URL pública do arquivo
+            // Obter URL p�blica do arquivo
             const { data: urlData } = supabase.storage
                 .from('images')
-                .getPublicUrl(filePath);
+                .getPublicUrl(storagePath);
 
             // Criar registro de pagamento
             const { error: paymentError } = await supabase
@@ -282,22 +282,30 @@ export function Checkout() {
                     status: 'pending'
                 });
 
-            if (paymentError) throw paymentError;
+            if (paymentError) {
+                console.error('Erro ao salvar pagamento:', paymentError);
+                throw new Error(`Falha ao registrar pagamento no banco: ${paymentError.message}`);
+            }
 
             // Gerar chave de acesso GPS para a equipe
-            const { createGPSAccessKey } = await import('@/lib/gps');
-            const { data: gpsKey, error: gpsError } = await createGPSAccessKey(team.id, stage.id);
+            try {
+                const { createGPSAccessKey } = await import('@/lib/gps');
+                const { data: gpsKey, error: gpsError } = await createGPSAccessKey(team.id, stage.id);
 
-            if (gpsError) {
-                console.error('Erro ao gerar chave GPS:', gpsError);
-            } else if (gpsKey) {
-                setGpsAccessKey(gpsKey.access_key);
+                if (gpsError) {
+                    console.error('Erro ao gerar chave GPS:', gpsError);
+                } else if (gpsKey) {
+                    setGpsAccessKey(gpsKey.access_key);
+                }
+            } catch (err) {
+                console.warn('Falha opcional ao gerar chave GPS:', err);
             }
 
             setPaymentCreated(true);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Erro ao enviar comprovante:', error);
-            alert('Erro ao enviar comprovante. Tente novamente.');
+            const errorMessage = error?.message || 'Erro ao enviar comprovante. Tente novamente.';
+            alert(`Erro ao enviar comprovante: ${errorMessage}`);
         } finally {
             setUploading(false);
         }
@@ -567,12 +575,12 @@ export function Checkout() {
                                         </label>
                                         <input
                                             type="file"
-                                            accept="image/*,.pdf"
+                                            accept="*/*"
                                             onChange={handleFileChange}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                         />
                                         <p className="text-xs text-gray-500 mt-1">
-                                            Aceita imagens (JPG, PNG) ou PDF. Máximo 5MB.
+                                            Aceita qualquer tipo de arquivo (PDF, JPG, JPEG, PNG, etc.). M�ximo 5MB.
                                         </p>
                                     </div>
 

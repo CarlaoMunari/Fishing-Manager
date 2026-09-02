@@ -169,7 +169,18 @@ export function TeamRegistration() {
 
     const validateForm = async (): Promise<boolean> => {
         setError('');
-        // Validação removida para permitir fluxo fluido
+        if (!teamName.trim()) {
+            setError('O Nome da Equipe � obrigat�rio.');
+            return false;
+        }
+        if (!city.trim()) {
+            setError('A Cidade da Equipe � obrigat�ria.');
+            return false;
+        }
+        if (!responsibleName.trim()) {
+            setError('O Nome do Respons�vel � obrigat�rio.');
+            return false;
+        }
         return true;
     };
 
@@ -192,8 +203,11 @@ export function TeamRegistration() {
 
             let teamId;
 
+                        const targetCompanyId = stage?.companyId || (stage as any)?.company_id || null;
+
             const teamData = {
                 stage_id: stageId,
+                company_id: targetCompanyId,
                 team_name: teamName.trim(),
                 city: city.trim(),
                 responsible_name: responsibleName.trim(),
@@ -201,7 +215,6 @@ export function TeamRegistration() {
                 responsible_phone: responsiblePhone.trim(),
                 responsible_phone2: responsiblePhone2.trim() || null,
                 members: members,
-                // Não alteramos o status de pagamento aqui
             };
 
             if (existingTeam) {
@@ -429,13 +442,15 @@ export function TeamRegistration() {
                                 </h2>
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <Input
-                                        label="Nome da Equipe"
+                                        label="Nome da Equipe *"
+                                        required
                                         value={teamName}
                                         onChange={(e) => setTeamName(e.target.value)}
                                         placeholder="Ex: Equipe Tucunaré"
                                     />
                                     <Input
-                                        label="Cidade"
+                                        label="Cidade *"
+                                        required
                                         value={city}
                                         onChange={(e) => setCity(e.target.value)}
                                         placeholder="Ex: São Paulo"
@@ -450,7 +465,8 @@ export function TeamRegistration() {
                                 </h2>
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <Input
-                                        label="Nome Completo"
+                                        label="Nome Completo do Respons�vel *"
+                                        required
                                         value={responsibleName}
                                         onChange={(e) => setResponsibleName(e.target.value)}
                                         placeholder="Nome do responsável (Capitão)"

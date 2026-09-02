@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Circuit } from '@/types';
@@ -37,7 +37,7 @@ export function RegulationsPage() {
             if (company) {
                 currentCompanyId = company.id;
             } else {
-                console.error('Empresa não encontrada:', companyName);
+                console.error('Empresa nÃ£o encontrada:', companyName);
                 return;
             }
         }
@@ -118,12 +118,12 @@ export function RegulationsPage() {
                         </div>
                     ) : regulation ? (
                         <div
-                            className="prose max-w-none text-gray-700"
+                            className="regulation-content prose max-w-none text-gray-700"
                             dangerouslySetInnerHTML={{ __html: regulation }} // Assuming regulation is stored as HTML
                         />
                     ) : (
                         <div className="text-center py-12">
-                            <p className="text-gray-500 text-lg">Regulamento não disponível para este circuito.</p>
+                            <p className="text-gray-500 text-lg">Regulamento nÃ£o disponÃ­vel para este circuito.</p>
                         </div>
                     )}
                 </div>

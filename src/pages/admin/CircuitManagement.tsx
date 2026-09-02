@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Circuit } from '@/types';
@@ -42,7 +42,7 @@ export function CircuitManagement() {
                 .from('circuits')
                 .select('*');
 
-            // Se não for super_admin, filtrar por company_id
+            // Se nÃ£o for super_admin, filtrar por company_id
             if (companyId) {
                 query = query.eq('company_id', companyId);
             }
@@ -238,7 +238,7 @@ export function CircuitManagement() {
                             label="Nome do Circuito"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder="Ex: Circuito Tucunaré 2025"
+                            placeholder="Ex: Circuito TucunarÃ© 2025"
                             required
                         />
                         <Input
@@ -250,7 +250,7 @@ export function CircuitManagement() {
                         />
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Quantidade de Peixes Válidos
+                                Quantidade de Peixes VÃ¡lidos
                             </label>
                             <select
                                 value={fishCount}
@@ -270,19 +270,19 @@ export function CircuitManagement() {
                                 <option value={10}>10 Peixes</option>
                             </select>
                             <p className="text-xs text-gray-500 mt-1">
-                                Define quantos peixes contam para a pontuação nas etapas deste circuito.
+                                Define quantos peixes contam para a pontuaÃ§Ã£o nas etapas deste circuito.
                             </p>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Regulamento (HTML suportado)
+                                Regulamento (HTML e quebras de linha suportados)
                             </label>
                             <textarea
                                 value={regulation}
                                 onChange={(e) => setRegulation(e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 min-h-[200px]"
                                 placeholder="Digite o regulamento aqui..."
-                            />
+                            />`n                            <p className="text-xs text-gray-500 mt-1">Quebras de linha, títulos (h2/h3) e listas (ul/ol) são formatados automaticamente.</p>
                         </div>
                         <div>
                             <label className="flex items-center gap-2">
@@ -296,7 +296,7 @@ export function CircuitManagement() {
                             </label>
                         </div>
                         <Button type="submit" variant="primary" className="w-full">
-                            {editingCircuit ? 'Salvar Alterações' : 'Criar Circuito'}
+                            {editingCircuit ? 'Salvar AlteraÃ§Ãµes' : 'Criar Circuito'}
                         </Button>
 
                     </form>
@@ -312,7 +312,7 @@ export function CircuitManagement() {
                             <h3 className="text-lg font-bold text-gray-900 mb-2">Excluir Circuito?</h3>
                             <p className="text-gray-600 mb-6">
                                 Tem certeza que deseja excluir este circuito?
-                                <br />Essa ação não pode ser desfeita.
+                                <br />Essa aÃ§Ã£o nÃ£o pode ser desfeita.
                             </p>
                             <div className="flex gap-3">
                                 <button

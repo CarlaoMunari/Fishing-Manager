@@ -111,26 +111,52 @@ export function HomePage() {
     const loadData = async (cId: string | null) => {
         try {
             let circuitsQuery = supabase.from('circuits').select('*', { count: 'exact', head: true });
-            let teamsQuery = supabase.from('teams').select('*', { count: 'exact', head: true });
             let stagesQuery = supabase.from('stages').select('*', { count: 'exact', head: true });
             let resultsQuery = supabase.from('results').select('fish_measurements');
+            let teamsCount = 0;
 
             if (cId) {
                 circuitsQuery = circuitsQuery.eq('company_id', cId);
-                teamsQuery = teamsQuery.eq('company_id', cId);
                 stagesQuery = stagesQuery.eq('company_id', cId);
                 resultsQuery = resultsQuery.eq('company_id', cId);
+
+                const { data: companyStages } = await supabase
+                    .from('stages')
+                    .select('id')
+                    .eq('company_id', cId);
+
+                const stageIds = companyStages ? companyStages.map(s => s.id) : [];
+
+                if (stageIds.length > 0) {
+                    const { count } = await supabase
+                        .from('teams')
+                        .select('*', { count: 'exact', head: true })
+                        .or(`company_id.eq.${cId},stage_id.in.(${stageIds.join(',')})`);
+                    teamsCount = count || 0;
+                } else {
+                    const { count } = await supabase
+                        .from('teams')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('company_id', cId);
+                    teamsCount = count || 0;
+                }
+            } else {
+                const { count } = await supabase
+                    .from('teams')
+                    .select('*', { count: 'exact', head: true });
+                teamsCount = count || 0;
             }
 
             const { count: circuitsCount } = await circuitsQuery;
-            const { count: teamsCount } = await teamsQuery;
             const { count: stagesCount } = await stagesQuery;
 
             const { data: results } = await resultsQuery;
             let fishCount = 0;
             if (results) {
                 results.forEach((r: any) => {
-                    fishCount += r.fish_measurements.filter((m: number) => m > 0).length;
+                    if (r.fish_measurements && Array.isArray(r.fish_measurements)) {
+                        fishCount += r.fish_measurements.filter((m: number) => m > 0).length;
+                    }
                 });
             }
 
