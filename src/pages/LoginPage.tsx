@@ -5,15 +5,12 @@ import { supabase } from "../lib/supabase";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
-import { Fish, ShieldCheck } from "lucide-react";
+import { Fish } from "lucide-react";
 
 export function LoginPage() {
-    const [mode, setMode] = useState<"login" | "signup">("login");
-    const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
-    const [successMsg, setSuccessMsg] = useState("");
     const [loading, setLoading] = useState(false);
     const { signIn } = useAuth();
     const navigate = useNavigate();
@@ -21,63 +18,30 @@ export function LoginPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
-        setSuccessMsg("");
         setLoading(true);
 
         try {
-            if (mode === "login") {
-                await signIn(email, password);
+            await signIn(email, password);
 
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session?.user) {
-                    const { data: userProfile } = await supabase
-                        .from("users")
-                        .select("role")
-                        .eq("id", session.user.id)
-                        .single();
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                const { data: userProfile } = await supabase
+                    .from("users")
+                    .select("role")
+                    .eq("id", session.user.id)
+                    .single();
 
-                    if (userProfile?.role === "captain") {
-                        navigate("/pescador");
-                    } else {
-                        navigate("/admin");
-                    }
+                if (userProfile?.role === "captain") {
+                    navigate("/pescador");
                 } else {
                     navigate("/admin");
                 }
             } else {
-                if (!name.trim()) {
-                    throw new Error("Por favor, preencha o seu nome completo.");
-                }
-
-                const { data: authData, error: authError } = await supabase.auth.signUp({
-                    email: email.trim(),
-                    password: password,
-                    options: {
-                        data: {
-                            name: name.trim(),
-                            role: "captain"
-                        }
-                    }
-                });
-
-                if (authError) throw authError;
-
-                if (authData.user) {
-                    await supabase.from("users").insert({
-                        id: authData.user.id,
-                        email: email.trim(),
-                        name: name.trim(),
-                        role: "captain",
-                        must_change_password: false
-                    });
-
-                    setSuccessMsg("Conta de Pescador criada com sucesso! Faça login abaixo.");
-                    setMode("login");
-                }
+                navigate("/admin");
             }
         } catch (err: any) {
-            console.error("Login/SignUp error:", err);
-            setError(err.message || "Erro ao processar autenticação.");
+            console.error("Login error:", err);
+            setError(err.message || "E-mail ou senha incorretos.");
         } finally {
             setLoading(false);
         }
@@ -92,53 +56,14 @@ export function LoginPage() {
                         <Fish className="w-8 h-8 text-white" />
                     </div>
                     <h1 className="text-2xl font-extrabold tracking-tight text-white">
-                        Fishing Manager
+                        FishCircuit
                     </h1>
                     <p className="text-xs text-gray-400 mt-1">
-                        {mode === "login"
-                            ? "Entre para acessar o painel de Pescador ou Admin"
-                            : "Crie sua conta de Capitão/Pescador"}
+                        Acesse com seu e-mail e senha cadastrados
                     </p>
                 </div>
 
-                {/* Tabs Select */}
-                <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700">
-                    <button
-                        onClick={() => { setMode("login"); setError(""); setSuccessMsg(""); }}
-                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                            mode === "login" ? "bg-blue-600 text-white shadow-md" : "text-gray-400 hover:text-white"
-                        }`}
-                    >
-                        Entrar
-                    </button>
-                    <button
-                        onClick={() => { setMode("signup"); setError(""); setSuccessMsg(""); }}
-                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                            mode === "signup" ? "bg-blue-600 text-white shadow-md" : "text-gray-400 hover:text-white"
-                        }`}
-                    >
-                        Cadastrar Pescador
-                    </button>
-                </div>
-
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    {mode === "signup" && (
-                        <div>
-                            <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1">
-                                Nome Completo
-                            </label>
-                            <Input
-                                type="text"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                placeholder="Seu nome ou nome do capitão"
-                                required
-                                disabled={loading}
-                                className="bg-slate-800 border-slate-700 text-white"
-                            />
-                        </div>
-                    )}
-
                     <div>
                         <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1">
                             E-mail
@@ -169,13 +94,6 @@ export function LoginPage() {
                         />
                     </div>
 
-                    {successMsg && (
-                        <div className="bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 px-4 py-3 rounded-xl text-xs font-semibold flex items-center gap-2">
-                            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                            <span>{successMsg}</span>
-                        </div>
-                    )}
-
                     {error && (
                         <div className="bg-rose-500/10 border border-rose-500/40 text-rose-300 px-4 py-3 rounded-xl text-xs font-semibold">
                             <strong>Erro:</strong> {error}
@@ -188,11 +106,7 @@ export function LoginPage() {
                         className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold rounded-xl shadow-lg transition-all active:scale-95"
                         disabled={loading}
                     >
-                        {loading
-                            ? "Aguarde..."
-                            : mode === "login"
-                            ? "Entrar no Sistema"
-                            : "Criar Conta de Capitão"}
+                        {loading ? "Entrando..." : "Entrar no Sistema"}
                     </Button>
                 </form>
 
