@@ -244,10 +244,9 @@ export function TeamRegistration() {
             let teamId;
             const targetCompanyId = stage?.companyId || (stage as any)?.company_id || null;
 
-            const teamData = {
+            const teamData: any = {
                 stage_id: stageId,
                 company_id: targetCompanyId,
-                user_id: currentUser?.id || null,
                 team_name: teamName.trim(),
                 city: city.trim(),
                 responsible_name: responsibleName.trim(),
@@ -255,6 +254,7 @@ export function TeamRegistration() {
                 responsible_phone: responsiblePhone.trim(),
                 responsible_phone2: responsiblePhone2.trim() || null,
                 members: members,
+                payment_method: "direct"
             };
 
             if (existingTeam) {

@@ -1,63 +1,62 @@
 ﻿import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../../contexts/AuthContext";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
+import { useAuth } from "../../contexts/AuthContext";
 import { Navbar } from "../../components/public/Navbar";
 import { Footer } from "../../components/public/Footer";
-import {
-    Anchor,
-    Users,
-    Calendar,
-    Trophy,
-    MapPin,
-    ShieldCheck,
-    Navigation,
-    CreditCard,
-    Save,
-    CheckCircle2,
-    Clock,
-    Plus
-} from "lucide-react";
+import { Card } from "../../components/ui/Card";
+import { Button } from "../../components/ui/Button";
+import { Input } from "../../components/ui/Input";
+import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
+import { Anchor, Calendar, Trophy, MapPin, Sparkles, CheckCircle2, AlertCircle, Save, LogOut } from "lucide-react";
 
 export function FishermanDashboard() {
-    const { currentUser } = useAuth();
+    const { currentUser, signOut } = useAuth();
     const navigate = useNavigate();
 
-    const [activeTab, setActiveTab] = useState<"registrations" | "team" | "rankings">("registrations");
-    const [loading, setLoading] = useState(true);
-    const [teamRegistrations, setTeamRegistrations] = useState<any[]>([]);
-    const [gpsKeys, setGpsKeys] = useState<{ [teamId: string]: string }>({});
+    const [activeTab, setActiveTab] = useState<"registrations" | "profile" | "gps" | "rankings">("registrations");
 
-    // Team Profile State (reusable across any company)
+    // Profile state
     const [teamName, setTeamName] = useState("");
     const [city, setCity] = useState("");
-    const [responsibleName, setResponsibleName] = useState(currentUser?.name || "");
+    const [responsibleName, setResponsibleName] = useState("");
+    const [responsibleEmail, setResponsibleEmail] = useState("");
     const [responsiblePhone, setResponsiblePhone] = useState("");
     const [responsiblePhone2, setResponsiblePhone2] = useState("");
-    const [members, setMembers] = useState<Array<{ name: string; nickname: string; rg: string }>>([
+    const [members, setMembers] = useState([
         { name: "", nickname: "", rg: "" },
         { name: "", nickname: "", rg: "" },
         { name: "", nickname: "", rg: "" },
         { name: "", nickname: "", rg: "" },
     ]);
 
-    const [saveSuccess, setSaveSuccess] = useState(false);
     const [savingProfile, setSavingProfile] = useState(false);
+    const [profileSavedMsg, setProfileSavedMsg] = useState("");
+
+    // Registrations & GPS Keys
+    const [teamRegistrations, setTeamRegistrations] = useState<any[]>([]);
+    const [loadingRegistrations, setLoadingRegistrations] = useState(true);
+    const [gpsKeysMap, setGpsKeysMap] = useState<Record<string, string>>({});
+
+    const memberLabels = ["Capitão (Você)", "Pescador 1", "Pescador 2", "Reserva"];
 
     useEffect(() => {
         if (currentUser) {
             loadFishermanData();
         } else {
-            setLoading(false);
+            setLoadingRegistrations(false);
         }
     }, [currentUser]);
 
     const loadFishermanData = async () => {
-        setLoading(true);
-        try {
-            if (!currentUser) return;
+        if (!currentUser) return;
+        setLoadingRegistrations(true);
 
-            // Load saved team profile from localStorage or database
+        try {
+            setResponsibleName(currentUser.name || "");
+            setResponsibleEmail(currentUser.email || "");
+
+            // Load profile from localStorage if exists
             const savedProfile = localStorage.getItem(`fisherman_profile_${currentUser.id}`);
             if (savedProfile) {
                 try {
@@ -75,20 +74,19 @@ export function FishermanDashboard() {
                 }
             }
 
-            // Search teams registered with user_id OR user email
+            // Search teams registered by user email
             const { data: teamsData } = await supabase
                 .from("teams")
                 .select(`
                     *,
                     stages (id, name, date, location, circuit_id, company_id, circuits(name, year))
                 `)
-                .or(`user_id.eq.${currentUser.id},responsible_email.eq.${currentUser.email}`)
-                .order("registered_at", { ascending: false });
+                .eq("responsible_email", currentUser.email)
+                .order("created_at", { ascending: false });
 
             if (teamsData) {
                 setTeamRegistrations(teamsData);
 
-                // Auto populate profile from latest team if not set
                 if (teamsData.length > 0 && (!teamName || !city)) {
                     const latest = teamsData[0];
                     setTeamName(latest.team_name || "");
@@ -106,82 +104,68 @@ export function FishermanDashboard() {
                 if (paidTeamIds.length > 0) {
                     const { data: keysData } = await supabase
                         .from("gps_access_keys")
-                        .select("*")
+                        .select("team_id, access_key, active")
                         .in("team_id", paidTeamIds)
-                        .eq("is_active", true);
+                        .eq("active", true);
 
                     if (keysData) {
-                        const keyMap: { [teamId: string]: string } = {};
+                        const map: Record<string, string> = {};
                         keysData.forEach((k: any) => {
-                            keyMap[k.team_id] = k.access_key;
+                            map[k.team_id] = k.access_key;
                         });
-                        setGpsKeys(keyMap);
+                        setGpsKeysMap(map);
                     }
                 }
             }
         } catch (error) {
             console.error("Erro ao carregar dados do pescador:", error);
         } finally {
-            setLoading(false);
+            setLoadingRegistrations(false);
         }
     };
 
-    const handleSaveProfile = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSaveProfile = () => {
+        if (!currentUser) return;
         setSavingProfile(true);
-        setSaveSuccess(false);
+        setProfileSavedMsg("");
 
         try {
-            if (currentUser) {
-                const profileData = {
-                    teamName,
-                    city,
-                    responsibleName,
-                    responsibleEmail: currentUser.email,
-                    responsiblePhone,
-                    responsiblePhone2,
-                    members,
-                    updatedAt: new Date().toISOString()
-                };
-                localStorage.setItem(`fisherman_profile_${currentUser.id}`, JSON.stringify(profileData));
-                setSaveSuccess(true);
-                setTimeout(() => setSaveSuccess(false), 4000);
-            }
-        } catch (err) {
-            console.error("Erro ao salvar perfil:", err);
+            const profileData = {
+                teamName: teamName.trim(),
+                city: city.trim(),
+                responsibleName: responsibleName.trim(),
+                responsibleEmail: responsibleEmail.trim(),
+                responsiblePhone: responsiblePhone.trim(),
+                responsiblePhone2: responsiblePhone2.trim(),
+                members: members
+            };
+
+            localStorage.setItem(`fisherman_profile_${currentUser.id}`, JSON.stringify(profileData));
+            setProfileSavedMsg("Perfil da equipe salvo com sucesso! Será preenchido automaticamente nas próximas inscrições.");
+        } catch (e) {
+            console.error("Erro ao salvar perfil:", e);
         } finally {
             setSavingProfile(false);
         }
     };
 
-    const updateMember = (index: number, field: "name" | "nickname" | "rg", value: string) => {
+    const updateMember = (index: number, field: string, value: string) => {
         const updated = [...members];
         updated[index] = { ...updated[index], [field]: value };
         setMembers(updated);
     };
 
-    const memberLabels = ["Capitão (Responsável)", "2º Pescador", "3º Pescador", "Reservante / Apoio"];
-
     if (!currentUser) {
         return (
-            <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between">
-                <Navbar />
-                <div className="container mx-auto px-4 py-16 text-center max-w-md">
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-4">
-                        <Anchor className="w-12 h-12 text-cyan-400 mx-auto animate-bounce" />
-                        <h2 className="text-2xl font-bold">Área do Pescador</h2>
-                        <p className="text-sm text-gray-400">
-                            Faça login com a sua conta de Capitão/Pescador para gerenciar a sua equipe e inscrições.
-                        </p>
-                        <button
-                            onClick={() => navigate("/login")}
-                            className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all"
-                        >
-                            Entrar ou Criar Conta
-                        </button>
-                    </div>
-                </div>
-                <Footer />
+            <div className="min-h-screen bg-slate-900 flex flex-col justify-center items-center p-4 text-white">
+                <Anchor className="w-16 h-16 text-cyan-400 mb-4 animate-bounce" />
+                <h1 className="text-2xl font-bold mb-2">Área do Pescador</h1>
+                <p className="text-sm text-gray-400 mb-6 text-center max-w-md">
+                    Faça login com sua conta para visualizar suas inscrições, perfil salvo da equipe e chaves de rastreamento GPS.
+                </p>
+                <Button onClick={() => navigate("/login")} className="bg-blue-600 hover:bg-blue-500">
+                    Ir para Login
+                </Button>
             </div>
         );
     }
@@ -193,64 +177,64 @@ export function FishermanDashboard() {
             {/* Header Banner */}
             <div className="bg-gradient-to-r from-slate-950 via-blue-950 to-slate-900 text-white py-8 shadow-xl">
                 <div className="container mx-auto px-4 max-w-5xl">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
                             <div className="bg-blue-600/30 p-3 rounded-2xl border border-blue-500/30 backdrop-blur-md">
                                 <Anchor className="w-8 h-8 text-cyan-400" />
                             </div>
                             <div>
                                 <span className="text-xs text-blue-400 font-bold uppercase tracking-wider">
-                                    Painel do Capitão & Pescador
+                                    Painel do Capitão / Pescador
                                 </span>
-                                <h1 className="text-2xl md:text-3xl font-black text-white">
-                                    {teamName || currentUser.name || "Minha Equipe"}
+                                <h1 className="text-2xl font-black text-white">
+                                    Bem-vindo, {currentUser.name || "Capitão"}!
                                 </h1>
                             </div>
                         </div>
 
-                        <Link
-                            to="/etapas"
-                            className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-3 px-5 rounded-xl shadow-lg transition-all active:scale-95 text-sm"
+                        <button
+                            onClick={() => signOut()}
+                            className="flex items-center gap-2 text-xs bg-slate-800/80 hover:bg-rose-600 text-gray-300 hover:text-white px-3.5 py-2 rounded-xl border border-slate-700 transition-colors"
                         >
-                            <Plus className="w-4 h-4" /> Inscrever em Nova Etapa
-                        </Link>
+                            <LogOut className="w-4 h-4" /> Sair
+                        </button>
                     </div>
-                </div>
-            </div>
 
-            {/* Tabs Bar */}
-            <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-                <div className="container mx-auto px-4 max-w-5xl">
-                    <div className="flex overflow-x-auto no-scrollbar">
+                    {/* Navigation Tabs */}
+                    <div className="flex overflow-x-auto gap-2 mt-6 pt-4 border-t border-slate-800 scrollbar-none">
                         <button
                             onClick={() => setActiveTab("registrations")}
-                            className={`py-3.5 px-5 font-bold text-sm text-center border-b-2 whitespace-nowrap transition-all flex items-center gap-2 ${
-                                activeTab === "registrations"
-                                    ? "border-blue-600 text-blue-600"
-                                    : "border-transparent text-gray-500 hover:text-gray-800"
+                            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                                activeTab === "registrations" ? "bg-blue-600 text-white shadow-md" : "text-gray-400 hover:text-white"
                             }`}
                         >
-                            <Calendar className="w-4 h-4" /> Minhas Inscrições ({teamRegistrations.length})
+                            <Calendar className="w-4 h-4 inline mr-1.5" />
+                            Minhas Inscrições ({teamRegistrations.length})
                         </button>
                         <button
-                            onClick={() => setActiveTab("team")}
-                            className={`py-3.5 px-5 font-bold text-sm text-center border-b-2 whitespace-nowrap transition-all flex items-center gap-2 ${
-                                activeTab === "team"
-                                    ? "border-blue-600 text-blue-600"
-                                    : "border-transparent text-gray-500 hover:text-gray-800"
+                            onClick={() => setActiveTab("profile")}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                                activeTab === "profile" ? "bg-blue-600 text-white shadow-md" : "text-gray-400 hover:text-white"
                             }`}
                         >
-                            <Users className="w-4 h-4" /> Perfil da Equipe Salvo
+                            <Sparkles className="w-4 h-4 inline mr-1.5" />
+                            Perfil da Equipe Salvo
                         </button>
                         <button
-                            onClick={() => setActiveTab("rankings")}
-                            className={`py-3.5 px-5 font-bold text-sm text-center border-b-2 whitespace-nowrap transition-all flex items-center gap-2 ${
-                                activeTab === "rankings"
-                                    ? "border-blue-600 text-blue-600"
-                                    : "border-transparent text-gray-500 hover:text-gray-800"
+                            onClick={() => setActiveTab("gps")}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                                activeTab === "gps" ? "bg-blue-600 text-white shadow-md" : "text-gray-400 hover:text-white"
                             }`}
                         >
-                            <Trophy className="w-4 h-4" /> Meus Rankings
+                            <MapPin className="w-4 h-4 inline mr-1.5" />
+                            GPS Tracker
+                        </button>
+                        <button
+                            onClick={() => navigate("/ranking")}
+                            className="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap text-gray-400 hover:text-white transition-all"
+                        >
+                            <Trophy className="w-4 h-4 inline mr-1.5" />
+                            Meus Rankings
                         </button>
                     </div>
                 </div>
@@ -258,256 +242,203 @@ export function FishermanDashboard() {
 
             {/* Main Content Area */}
             <div className="container mx-auto px-4 py-6 max-w-5xl flex-grow">
-                {loading ? (
+                {loadingRegistrations ? (
                     <div className="text-center py-16">
-                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto"></div>
-                        <p className="mt-4 text-sm font-medium text-gray-600">Carregando painel do pescador...</p>
+                        <LoadingSpinner />
+                        <p className="mt-3 text-xs text-gray-500">Carregando informações do pescador...</p>
                     </div>
                 ) : activeTab === "registrations" ? (
-                    /* Registrations Tab */
                     <div className="space-y-4">
+                        <h2 className="text-lg font-bold text-gray-900">Inscrições Realizadas em Circuitos</h2>
+
                         {teamRegistrations.length === 0 ? (
-                            <div className="bg-white rounded-3xl p-8 text-center border border-gray-200 shadow-sm space-y-4">
-                                <Calendar className="w-12 h-12 text-gray-400 mx-auto" />
-                                <h3 className="text-lg font-bold text-gray-800">Nenhuma inscrição encontrada</h3>
+                            <Card className="p-8 text-center space-y-3">
+                                <AlertCircle className="w-12 h-12 text-blue-500 mx-auto" />
+                                <h3 className="text-base font-bold text-gray-800">Nenhuma inscrição encontrada</h3>
                                 <p className="text-xs text-gray-500 max-w-md mx-auto">
-                                    Sua equipe ainda não se inscreveu em nenhuma etapa. Navegue pelas etapas disponíveis em qualquer organizador e inscreva-se!
+                                    Sua equipe ainda não se inscreveu em nenhuma etapa. Navegue pelas etapas ativas e inscreva-se com 1 clique!
                                 </p>
-                                <Link
-                                    to="/etapas"
-                                    className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-3 px-6 rounded-xl shadow-md transition-colors"
-                                >
-                                    Ver Etapas Abertas
-                                </Link>
-                            </div>
+                                <Button onClick={() => navigate("/inscricao")} className="bg-blue-600 text-xs">
+                                    Ver Etapas com Inscrição Aberta
+                                </Button>
+                            </Card>
                         ) : (
-                            teamRegistrations.map((team) => {
-                                const stage = team.stages;
-                                const gpsKey = gpsKeys[team.id];
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {teamRegistrations.map((reg) => {
+                                    const stage = reg.stages;
+                                    const gpsKey = gpsKeysMap[reg.id];
 
-                                return (
-                                    <div
-                                        key={team.id}
-                                        className="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-sm space-y-4 hover:shadow-md transition-all"
-                                    >
-                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
-                                            <div>
-                                                <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600">
-                                                    {stage?.circuits?.name || "Circuito de Pesca"}
-                                                </span>
-                                                <h3 className="text-lg font-bold text-gray-900 leading-tight">
-                                                    {stage?.name || "Etapa Esportiva"}
-                                                </h3>
-                                            </div>
-
-                                            <div>
-                                                {team.paid ? (
-                                                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Inscrição Confirmada
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                                        <Clock className="w-3.5 h-3.5 text-amber-600" /> Pagamento Pendente
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                                            <div className="flex items-center gap-2 text-gray-600">
-                                                <MapPin className="w-4 h-4 text-blue-500 shrink-0" />
-                                                <span>{stage?.location || "Local da Etapa"}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-gray-600">
-                                                <Users className="w-4 h-4 text-blue-500 shrink-0" />
-                                                <span>Equipe: <strong>{team.team_name}</strong></span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-gray-600">
-                                                <Calendar className="w-4 h-4 text-blue-500 shrink-0" />
-                                                <span>
-                                                    Data: {stage?.date ? new Date(stage.date).toLocaleDateString("pt-BR") : "--"}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {/* GPS Key & Tracker Direct Shortcut */}
-                                        {team.paid && gpsKey ? (
-                                            <div className="bg-slate-900 text-white rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 border border-slate-800">
+                                    return (
+                                        <Card key={reg.id} className="p-5 space-y-3 border border-gray-200">
+                                            <div className="flex items-start justify-between">
                                                 <div>
-                                                    <span className="text-[10px] font-semibold uppercase text-cyan-400 tracking-wider block">
-                                                        Chave de Rastreamento GPS
+                                                    <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-2 py-0.5 rounded">
+                                                        {stage?.circuits?.name || "Circuito"}
                                                     </span>
-                                                    <span className="text-xl font-extrabold font-mono text-white tracking-widest">
-                                                        {gpsKey}
-                                                    </span>
+                                                    <h3 className="font-bold text-base text-gray-900 mt-1">
+                                                        {stage?.name || "Etapa"}
+                                                    </h3>
+                                                    <p className="text-xs text-gray-500">
+                                                        {stage?.location} • {stage?.date ? new Date(stage.date).toLocaleDateString("pt-BR") : ""}
+                                                    </p>
                                                 </div>
 
-                                                <Link
-                                                    to="/gps"
-                                                    className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold text-xs rounded-xl shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all"
-                                                >
-                                                    <Navigation className="w-4 h-4 animate-pulse" />
-                                                    Iniciar Rastreamento GPS
-                                                </Link>
+                                                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                                                    reg.paid
+                                                        ? "bg-emerald-100 text-emerald-800"
+                                                        : "bg-amber-100 text-amber-800"
+                                                }`}>
+                                                    {reg.paid ? "Confirmado" : "Pagamento Pendente"}
+                                                </span>
                                             </div>
-                                        ) : !team.paid ? (
-                                            <div className="flex justify-end pt-2">
-                                                <Link
-                                                    to="/checkout"
-                                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors"
-                                                >
-                                                    <CreditCard className="w-3.5 h-3.5" /> Concluir Pagamento
-                                                </Link>
+
+                                            <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 text-xs space-y-1">
+                                                <p className="text-gray-700 font-semibold">Equipe: {reg.team_name} ({reg.city})</p>
+                                                <p className="text-gray-500">Responsável: {reg.responsible_name}</p>
                                             </div>
-                                        ) : null}
-                                    </div>
-                                );
-                            })
+
+                                            {/* GPS Access Shortcut */}
+                                            {reg.paid && gpsKey ? (
+                                                <div className="bg-slate-900 text-white p-3 rounded-xl flex items-center justify-between">
+                                                    <div>
+                                                        <span className="text-[10px] text-cyan-400 font-bold uppercase block">Chave GPS Ativa</span>
+                                                        <span className="font-mono text-sm font-bold tracking-wider">{gpsKey}</span>
+                                                    </div>
+                                                    <Button
+                                                        onClick={() => navigate(`/gps?key=${gpsKey}`)}
+                                                        className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs py-1.5 px-3"
+                                                    >
+                                                        Abrir GPS
+                                                    </Button>
+                                                </div>
+                                            ) : null}
+                                        </Card>
+                                    );
+                                })}
+                            </div>
                         )}
                     </div>
-                ) : activeTab === "team" ? (
-                    /* Team Profile Tab */
-                    <form onSubmit={handleSaveProfile} className="bg-white rounded-3xl border border-gray-200/80 p-6 shadow-sm space-y-6">
+                ) : activeTab === "profile" ? (
+                    <Card className="p-6 md:p-8 space-y-6">
                         <div>
-                            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                                <Users className="w-5 h-5 text-blue-600" /> Perfil Reutilizável da Equipe
-                            </h3>
+                            <h2 className="text-xl font-bold text-gray-900">Perfil Salvo da Equipe</h2>
                             <p className="text-xs text-gray-500 mt-1">
-                                Salve aqui os dados da sua equipe. Quando você for se inscrever na etapa de <strong>qualquer empresa</strong>, todos esses campos serão preenchidos automaticamente!
+                                Preencha estes dados uma vez para reaproveitar automaticamente ao se inscrever em qualquer etapa de qualquer empresa!
                             </p>
                         </div>
 
-                        {saveSuccess && (
-                            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl text-xs font-bold flex items-center gap-2">
-                                <ShieldCheck className="w-4 h-4 text-emerald-600" /> Perfil salvo com sucesso! Seus dados serão usados nas próximas inscrições.
+                        {profileSavedMsg && (
+                            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-xl text-xs font-semibold flex items-center gap-2">
+                                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                                <span>{profileSavedMsg}</span>
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                                    Nome da Equipe *
-                                </label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={teamName}
-                                    onChange={(e) => setTeamName(e.target.value)}
-                                    placeholder="Ex: Equipe Tucunaré Master"
-                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium text-sm"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                                    Cidade da Equipe *
-                                </label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={city}
-                                    onChange={(e) => setCity(e.target.value)}
-                                    placeholder="Ex: São Paulo"
-                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium text-sm"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                                    Telefone Principal (WhatsApp) *
-                                </label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={responsiblePhone}
-                                    onChange={(e) => setResponsiblePhone(e.target.value)}
-                                    placeholder="(11) 99999-9999"
-                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium text-sm"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                                    Telefone Secundário (Opcional)
-                                </label>
-                                <input
-                                    type="text"
-                                    value={responsiblePhone2}
-                                    onChange={(e) => setResponsiblePhone2(e.target.value)}
-                                    placeholder="(11) 98888-8888"
-                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium text-sm"
-                                />
-                            </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <Input
+                                label="Nome da Equipe"
+                                value={teamName}
+                                onChange={(e) => setTeamName(e.target.value)}
+                                placeholder="Ex: Equipe Tucunaré"
+                            />
+                            <Input
+                                label="Cidade / UF"
+                                value={city}
+                                onChange={(e) => setCity(e.target.value)}
+                                placeholder="Ex: São Paulo - SP"
+                            />
+                            <Input
+                                label="Nome do Responsável / Capitão"
+                                value={responsibleName}
+                                onChange={(e) => setResponsibleName(e.target.value)}
+                                placeholder="Seu nome completo"
+                            />
+                            <Input
+                                label="WhatsApp Principal"
+                                value={responsiblePhone}
+                                onChange={(e) => setResponsiblePhone(e.target.value)}
+                                placeholder="(11) 99999-9999"
+                            />
                         </div>
 
-                        {/* Members Section */}
-                        <div className="pt-4 border-t border-gray-200 space-y-4">
-                            <h4 className="font-bold text-sm text-gray-900">Integrantes da Equipe</h4>
-                            {members.map((member, idx) => (
-                                <div key={idx} className="bg-gray-50 p-4 rounded-2xl border border-gray-200/60 space-y-3">
+                        <div className="space-y-4 pt-4 border-t border-gray-200">
+                            <h3 className="text-sm font-bold text-gray-900">Integrantes Fixos da Equipe (4 Pescadores)</h3>
+                            {members.map((m, idx) => (
+                                <div key={idx} className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-2">
                                     <span className="text-xs font-extrabold text-blue-700 uppercase tracking-wider">
                                         {memberLabels[idx]}
                                     </span>
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                        <input
-                                            type="text"
-                                            value={member.name}
+                                    <div className="grid gap-3 md:grid-cols-3">
+                                        <Input
+                                            label="Nome"
+                                            value={m.name}
                                             onChange={(e) => updateMember(idx, "name", e.target.value)}
                                             placeholder="Nome completo"
-                                            className="px-3.5 py-2 border border-gray-300 rounded-xl text-xs font-medium"
                                         />
-                                        <input
-                                            type="text"
-                                            value={member.nickname}
+                                        <Input
+                                            label="Apelido"
+                                            value={m.nickname}
                                             onChange={(e) => updateMember(idx, "nickname", e.target.value)}
                                             placeholder="Apelido"
-                                            className="px-3.5 py-2 border border-gray-300 rounded-xl text-xs font-medium"
                                         />
-                                        <input
-                                            type="text"
-                                            value={member.rg}
+                                        <Input
+                                            label="RG / CPF"
+                                            value={m.rg}
                                             onChange={(e) => updateMember(idx, "rg", e.target.value)}
                                             placeholder="RG ou CPF"
-                                            className="px-3.5 py-2 border border-gray-300 rounded-xl text-xs font-medium"
                                         />
                                     </div>
                                 </div>
                             ))}
                         </div>
 
-                        <div className="flex justify-end pt-2">
-                            <button
-                                type="submit"
-                                disabled={savingProfile}
-                                className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 text-sm"
+                        <div className="flex justify-end">
+                            <Button
+                                onClick={handleSaveProfile}
+                                loading={savingProfile}
+                                className="bg-blue-600 hover:bg-blue-500 font-bold text-xs py-3 px-6"
                             >
-                                <Save className="w-4 h-4" /> {savingProfile ? "Salvando..." : "Salvar Perfil Reutilizável"}
-                            </button>
+                                <Save className="w-4 h-4 mr-2" /> Salvar Perfil para Próximas Inscrições
+                            </Button>
                         </div>
-                    </form>
+                    </Card>
                 ) : (
-                    /* Rankings Tab */
-                    <div className="bg-white rounded-3xl border border-gray-200/80 p-6 shadow-sm space-y-4">
-                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                            <Trophy className="w-5 h-5 text-amber-500" /> Meus Circuitos Inscritos
-                        </h3>
+                    /* GPS Tab */
+                    <Card className="p-6 md:p-8 space-y-4">
+                        <h2 className="text-lg font-bold text-gray-900">Chaves de Rastreamento GPS</h2>
                         <p className="text-xs text-gray-500">
-                            Acompanhe abaixo o ranking das etapas dos circuitos em que sua equipe já participou:
+                            Se a sua inscrição estiver confirmada e paga, sua chave de acesso estará listada abaixo. Clique em "Iniciar Rastreamento" para transmitir a localização do seu celular para a comissão julgadora.
                         </p>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                            <Link
-                                to="/ranking"
-                                className="p-4 rounded-2xl border border-blue-200 bg-blue-50/50 hover:bg-blue-100/50 transition-all flex items-center justify-between"
-                            >
-                                <div>
-                                    <h4 className="font-bold text-sm text-blue-900">Ver Classificação Geral</h4>
-                                    <p className="text-xs text-blue-700">Acesse o ranking completo do circuito</p>
+                        <div className="space-y-3">
+                            {teamRegistrations.filter(t => t.paid).length === 0 ? (
+                                <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-xs text-amber-800">
+                                    Nenhuma etapa com inscrição confirmada e paga até o momento.
                                 </div>
-                                <Trophy className="w-5 h-5 text-blue-600 shrink-0" />
-                            </Link>
+                            ) : (
+                                teamRegistrations.filter(t => t.paid).map(t => {
+                                    const key = gpsKeysMap[t.id];
+                                    return (
+                                        <div key={t.id} className="bg-slate-900 text-white p-4 rounded-2xl flex items-center justify-between">
+                                            <div>
+                                                <h4 className="font-bold text-sm text-cyan-300">{t.stages?.name}</h4>
+                                                <p className="text-xs text-gray-400">Equipe: {t.team_name}</p>
+                                                <p className="font-mono text-xs font-bold text-white mt-1">Chave: {key || "Aguardando geração..."}</p>
+                                            </div>
+                                            {key && (
+                                                <Link
+                                                    to={`/gps?key=${key}`}
+                                                    className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs py-2 px-4 rounded-xl"
+                                                >
+                                                    Iniciar Rastreamento GPS
+                                                </Link>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            )}
                         </div>
-                    </div>
+                    </Card>
                 )}
             </div>
 
