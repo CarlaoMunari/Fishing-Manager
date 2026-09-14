@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
+import { formatDateBR } from "../../lib/dateUtils";
 import { Navbar } from "../../components/public/Navbar";
 import { Footer } from "../../components/public/Footer";
 import { Building2, Trophy, Calendar, ArrowRight, UserPlus, Sparkles } from "lucide-react";
@@ -220,7 +221,7 @@ export function MultiCompanyRegistration() {
                             >
                                 {stages.map((stage) => (
                                     <option key={stage.id} value={stage.id}>
-                                        {stage.name} - {stage.location} ({new Date(stage.date).toLocaleDateString("pt-BR")})
+                                        {stage.name} - {stage.location} ({formatDateBR(stage.date)})
                                     </option>
                                 ))}
                             </select>

@@ -2,6 +2,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
+import { parseLocalDate, formatDateBR } from "../../lib/dateUtils";
 import { Stage, TeamMember, Team } from "../../types";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -116,7 +117,7 @@ export function TeamRegistration() {
                     responsiblePhone2: item.responsible_phone2,
                     members: item.members,
                     paid: item.paid,
-                    registeredAt: new Date(item.created_at),
+                    registeredAt: parseLocalDate(item.created_at),
                 }));
                 setSearchResults(teams);
             }
@@ -188,11 +189,11 @@ export function TeamRegistration() {
                     circuitId: data.circuit_id,
                     companyId: data.company_id,
                     name: data.name,
-                    date: new Date(data.date),
+                    date: parseLocalDate(data.date),
                     location: data.location,
                     registrationFee: data.registration_fee,
                     imageUrl: data.image_url,
-                    createdAt: new Date(data.created_at),
+                    createdAt: parseLocalDate(data.created_at),
                 } as Stage);
             }
         } catch (error) {
@@ -319,7 +320,7 @@ export function TeamRegistration() {
                             </span>
                             <h1 className="text-2xl md:text-3xl font-black mt-1">{stage.name}</h1>
                             <p className="text-xs md:text-sm text-blue-200 mt-1">
-                                {stage.location} • {new Date(stage.date).toLocaleDateString("pt-BR")}
+                                {stage.location} • {formatDateBR(stage.date)}
                             </p>
 
                             <div className="mt-4 pt-4 border-t border-slate-800 flex items-center justify-between">
