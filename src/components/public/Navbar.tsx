@@ -35,7 +35,34 @@ export function Navbar() {
 
     const loadCompanyData = async () => {
         try {
-            const currentSlug = companyName || localStorage.getItem("last_company_slug");
+            let currentSlug = companyName || localStorage.getItem("last_company_slug");
+
+            // Tentar extrair stageId da URL (ex: /register/:stageId ou ?stageId=...)
+            const pathname = window.location.pathname;
+            const searchParams = new URLSearchParams(window.location.search);
+            const registerMatch = pathname.match(/\/register\/([a-f0-9-]+)/i);
+            const targetStageId = registerMatch ? registerMatch[1] : searchParams.get("stageId");
+
+            if (targetStageId) {
+                const { data: stageData } = await supabase
+                    .from("stages")
+                    .select("company_id")
+                    .eq("id", targetStageId)
+                    .maybeSingle();
+
+                if (stageData?.company_id) {
+                    const { data: comp } = await supabase
+                        .from("users")
+                        .select("slug")
+                        .eq("id", stageData.company_id)
+                        .maybeSingle();
+
+                    if (comp?.slug) {
+                        currentSlug = comp.slug;
+                        localStorage.setItem("last_company_slug", comp.slug);
+                    }
+                }
+            }
 
             if (!currentSlug) {
                 const { data: defaultSettings } = await supabase

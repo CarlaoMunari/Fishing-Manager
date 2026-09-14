@@ -1,11 +1,30 @@
 ﻿import { Link, useLocation, useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { Home, Building2, UserPlus, Trophy, MapPin } from "lucide-react";
 
 export function MobileBottomNav() {
     const location = useLocation();
     const { companyName } = useParams();
 
-    const activeSlug = companyName || localStorage.getItem("last_company_slug") || "";
+    const [activeSlug, setActiveSlug] = useState<string>(
+        companyName || localStorage.getItem("last_company_slug") || ""
+    );
+
+    useEffect(() => {
+        const handleUpdate = () => {
+            const slug = companyName || localStorage.getItem("last_company_slug") || "";
+            setActiveSlug(slug);
+        };
+
+        handleUpdate();
+        window.addEventListener("company_slug_updated", handleUpdate);
+        window.addEventListener("storage", handleUpdate);
+
+        return () => {
+            window.removeEventListener("company_slug_updated", handleUpdate);
+            window.removeEventListener("storage", handleUpdate);
+        };
+    }, [companyName, location.pathname]);
     const companyHomePath = activeSlug ? `/${activeSlug}` : "/";
     const basePath = activeSlug ? `/${activeSlug}` : "";
 

@@ -19,18 +19,45 @@ export function Footer() {
         loadSettings();
     }, [companyName]);
 
-    const loadSettings = async () => {
-        // Se não tiver companyName na URL, usar valores padrão
-        if (!companyName) {
-            return;
-        }
+    const [companySlug, setCompanySlug] = useState<string>('');
 
+    const loadSettings = async () => {
         try {
+            let currentSlug = companyName || localStorage.getItem("last_company_slug");
+
+            const pathname = window.location.pathname;
+            const searchParams = new URLSearchParams(window.location.search);
+            const registerMatch = pathname.match(/\/register\/([a-f0-9-]+)/i);
+            const targetStageId = registerMatch ? registerMatch[1] : searchParams.get("stageId");
+
+            if (targetStageId) {
+                const { data: stageData } = await supabase
+                    .from("stages")
+                    .select("company_id")
+                    .eq("id", targetStageId)
+                    .maybeSingle();
+
+                if (stageData?.company_id) {
+                    const { data: comp } = await supabase
+                        .from("users")
+                        .select("slug")
+                        .eq("id", stageData.company_id)
+                        .maybeSingle();
+
+                    if (comp?.slug) {
+                        currentSlug = comp.slug;
+                    }
+                }
+            }
+
+            if (!currentSlug) return;
+            setCompanySlug(currentSlug);
+
             // Buscar empresa pelo slug
             const { data: company } = await supabase
                 .from('users')
                 .select('id')
-                .eq('slug', companyName)
+                .eq('slug', currentSlug)
                 .eq('role', 'company')
                 .single();
 
@@ -78,13 +105,13 @@ export function Footer() {
                         <h3 className="text-lg font-bold mb-4">Links Úteis</h3>
                         <ul className="space-y-2 text-sm text-gray-400">
                             <li>
-                                <Link to={companyName ? `/${companyName}` : '/'} className="hover:text-blue-400 transition-colors">Início</Link>
+                                <Link to={(companySlug || companyName) ? `/${companyName}` : '/'} className="hover:text-blue-400 transition-colors">Início</Link>
                             </li>
                             <li>
-                                <Link to={companyName ? `/${companyName}/ranking` : '/ranking'} className="hover:text-blue-400 transition-colors">Rankings</Link>
+                                <Link to={(companySlug || companyName) ? `/${companyName}/ranking` : '/ranking'} className="hover:text-blue-400 transition-colors">Rankings</Link>
                             </li>
                             <li>
-                                <Link to={companyName ? `/${companyName}/regulamentos` : '/regulamentos'} className="hover:text-blue-400 transition-colors">Regulamento</Link>
+                                <Link to={(companySlug || companyName) ? `/${companyName}/regulamentos` : '/regulamentos'} className="hover:text-blue-400 transition-colors">Regulamento</Link>
                             </li>
                         </ul>
                     </div>
