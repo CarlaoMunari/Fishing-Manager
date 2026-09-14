@@ -196,7 +196,6 @@ export function TeamRegistration() {
                     createdAt: parseLocalDate(data.created_at),
                 } as Stage);
 
-                // Update company slug for company context in Navbar
                 if (data.company_id) {
                     const { data: comp } = await supabase
                         .from("users")
@@ -306,7 +305,26 @@ export function TeamRegistration() {
 
             const activeSlug = companyName || localStorage.getItem("last_company_slug");
             const checkoutPath = activeSlug ? `/${activeSlug}/checkout` : "/checkout";
-            navigate(`${checkoutPath}?teamId=${teamId}&stageId=${stageId}`);
+
+            const checkoutStateTeam = {
+                id: teamId,
+                stageId: stageId,
+                teamName: teamName.trim(),
+                city: city.trim(),
+                responsibleName: responsibleName.trim(),
+                responsibleEmail: responsibleEmail.trim(),
+                responsiblePhone: responsiblePhone.trim(),
+                responsiblePhone2: responsiblePhone2.trim(),
+                members: members,
+                companyId: targetCompanyId
+            };
+
+            navigate(`${checkoutPath}?teamId=${teamId}&stageId=${stageId}`, {
+                state: {
+                    team: checkoutStateTeam,
+                    stage: stage
+                }
+            });
         } catch (err: any) {
             console.error("Erro ao salvar inscrição:", err);
             setError(err.message || "Erro ao salvar a inscrição. Tente novamente.");
