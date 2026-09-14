@@ -1,9 +1,9 @@
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Fish, Menu, X, User } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/Button';
-import { supabase } from '@/lib/supabase';
+﻿import { Link, useNavigate, useParams } from "react-router-dom";
+import { Fish, Menu, X, User } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useAuth } from "../../contexts/AuthContext";
+import { Button } from "../../components/ui/Button";
+import { supabase } from "../../lib/supabase";
 
 export function Navbar() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -15,19 +15,22 @@ export function Navbar() {
     // Company settings
     const [companyLogo, setCompanyLogo] = useState<string | null>(null);
     const [companyTitle, setCompanyTitle] = useState<string | null>(null);
+    const [activeCompanySlug, setActiveCompanySlug] = useState<string>("");
 
-    // Load company settings for all visitors
+    // Load company settings
     useEffect(() => {
         loadCompanyData();
     }, [companyName]);
 
     const loadCompanyData = async () => {
         try {
-            if (!companyName) {
+            const currentSlug = companyName || localStorage.getItem("last_company_slug");
+
+            if (!currentSlug) {
                 const { data: defaultSettings } = await supabase
-                    .from('company_settings')
-                    .select('logo_url')
-                    .not('logo_url', 'is', null)
+                    .from("company_settings")
+                    .select("logo_url")
+                    .not("logo_url", "is", null)
                     .limit(1)
                     .maybeSingle();
 
@@ -37,23 +40,30 @@ export function Navbar() {
                     setCompanyLogo(null);
                 }
                 setCompanyTitle(null);
+                setActiveCompanySlug("");
                 return;
             }
 
+            // Save to localStorage so navigation persists within company context
+            if (companyName) {
+                localStorage.setItem("last_company_slug", companyName);
+            }
+            setActiveCompanySlug(currentSlug);
+
             const { data: company } = await supabase
-                .from('users')
-                .select('id, name')
-                .eq('slug', companyName)
-                .eq('role', 'company')
+                .from("users")
+                .select("id, name, slug")
+                .eq("slug", currentSlug)
+                .eq("role", "company")
                 .maybeSingle();
 
             if (company) {
                 setCompanyTitle(company.name);
 
                 const { data: settings } = await supabase
-                    .from('company_settings')
-                    .select('logo_url')
-                    .eq('company_id', company.id)
+                    .from("company_settings")
+                    .select("logo_url")
+                    .eq("company_id", company.id)
                     .maybeSingle();
 
                 if (settings && settings.logo_url) {
@@ -61,30 +71,32 @@ export function Navbar() {
                 } else {
                     setCompanyLogo(null);
                 }
+            } else {
+                setCompanyTitle(null);
+                setCompanyLogo(null);
             }
         } catch (error) {
-            console.error('Erro ao carregar dados da empresa na Navbar:', error);
+            console.error("Erro ao carregar dados da empresa na Navbar:", error);
         }
     };
 
-    // Base path para links (com ou sem company slug)
-    const basePath = companyName ? `/${companyName}` : '';
+    const companyHomePath = activeCompanySlug ? `/${activeCompanySlug}` : "/";
+    const basePath = activeCompanySlug ? `/${activeCompanySlug}` : "";
 
-    // Links para o menu mobile (simplificado)
     const mobileLinks = [
-        { name: 'Início', path: basePath || '/' },
-        { name: 'Etapas', path: `${basePath}/etapas` },
-        { name: 'Classificação', path: `${basePath}/ranking` },
-        { name: 'Regulamento', path: `${basePath}/regulamento` },
-        { name: 'Contato', path: `${basePath}/#contato` },
+        { name: "Início", path: companyHomePath },
+        { name: "Etapas", path: `${basePath}/etapas` },
+        { name: "Classificação", path: `${basePath}/ranking` },
+        { name: "Regulamento", path: `${basePath}/regulamento` },
+        { name: "Contato", path: `${basePath}/#contato` },
     ];
 
     return (
         <nav className="bg-slate-900 text-white shadow-lg sticky top-0 z-50 border-b border-slate-800">
             <div className="container mx-auto px-4">
                 <div className="flex items-center justify-between h-20">
-                    {/* Logo */}
-                    <Link to={basePath || "/"} className="flex items-center gap-3 hover:opacity-90 transition-opacity group">
+                    {/* Logo - Clicar no logo vai para a página inicial da EMPRESA se estiver em uma empresa */}
+                    <Link to={companyHomePath} className="flex items-center gap-3 hover:opacity-90 transition-opacity group">
                         {companyLogo ? (
                             <img src={companyLogo} alt={companyTitle || "Logo"} className="h-12 max-w-[200px] object-contain" />
                         ) : (
@@ -94,7 +106,7 @@ export function Navbar() {
                         )}
                         <div className="flex flex-col">
                             <span className="text-xl font-bold leading-none tracking-tight">
-                                {companyTitle || 'CIRCUITO'}
+                                {companyTitle || "CIRCUITO"}
                             </span>
                             {!companyTitle && (
                                 <span className="text-sm font-medium text-blue-400 leading-none tracking-widest">PESCA ESPORTIVA</span>
@@ -104,7 +116,7 @@ export function Navbar() {
 
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center gap-8">
-                        <Link to={basePath || '/'} className="text-sm font-medium text-gray-300 hover:text-white hover:text-blue-400 transition-colors uppercase tracking-wide">
+                        <Link to={companyHomePath} className="text-sm font-medium text-gray-300 hover:text-white hover:text-blue-400 transition-colors uppercase tracking-wide">
                             Início
                         </Link>
 
@@ -116,13 +128,13 @@ export function Navbar() {
                         >
                             <button className="flex items-center gap-1 text-sm font-medium text-gray-300 hover:text-white hover:text-blue-400 transition-colors uppercase tracking-wide focus:outline-none">
                                 Circuitos
-                                <svg className={`w-4 h-4 transition-transform ${circuitMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className={`w-4 h-4 transition-transform ${circuitMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                 </svg>
                             </button>
 
                             {/* Dropdown Content */}
-                            <div className={`absolute left-0 mt-0 w-56 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 transition-all duration-200 ${circuitMenuOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'}`}>
+                            <div className={`absolute left-0 mt-0 w-56 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 transition-all duration-200 ${circuitMenuOpen ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2"}`}>
                                 <Link to={`${basePath}/etapas`} className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 hover:text-blue-600 border-b border-gray-100">
                                     Etapas
                                 </Link>
@@ -144,7 +156,7 @@ export function Navbar() {
                                 <Button
                                     variant="primary"
                                     className="bg-blue-600 hover:bg-blue-700 text-white border-none shadow-lg shadow-blue-900/20"
-                                    onClick={() => navigate('/admin')}
+                                    onClick={() => navigate("/admin")}
                                 >
                                     <User className="w-4 h-4 mr-2" />
                                     Painel Admin
@@ -153,7 +165,7 @@ export function Navbar() {
                                 <Button
                                     variant="outline"
                                     className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-800"
-                                    onClick={() => navigate('/login')}
+                                    onClick={() => navigate("/login")}
                                 >
                                     <User className="w-4 h-4 mr-2" />
                                     Login
@@ -190,7 +202,7 @@ export function Navbar() {
                                     variant="primary"
                                     className="w-full bg-blue-600"
                                     onClick={() => {
-                                        navigate('/admin');
+                                        navigate("/admin");
                                         setMobileMenuOpen(false);
                                     }}
                                 >
@@ -202,7 +214,7 @@ export function Navbar() {
                                     variant="outline"
                                     className="w-full border-slate-600 text-slate-300 hover:text-white hover:bg-slate-800"
                                     onClick={() => {
-                                        navigate('/login');
+                                        navigate("/login");
                                         setMobileMenuOpen(false);
                                     }}
                                 >
@@ -217,3 +229,4 @@ export function Navbar() {
         </nav>
     );
 }
+

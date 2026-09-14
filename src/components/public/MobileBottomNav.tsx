@@ -5,12 +5,14 @@ export function MobileBottomNav() {
     const location = useLocation();
     const { companyName } = useParams();
 
-    const basePath = companyName ? `/${companyName}` : "";
+    const activeSlug = companyName || localStorage.getItem("last_company_slug") || "";
+    const companyHomePath = activeSlug ? `/${activeSlug}` : "/";
+    const basePath = activeSlug ? `/${activeSlug}` : "";
 
     const navItems = [
         {
             label: "Início",
-            path: basePath || "/",
+            path: companyHomePath,
             icon: Home,
             exact: true
         },
