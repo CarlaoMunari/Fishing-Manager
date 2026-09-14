@@ -1,9 +1,10 @@
 ﻿import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+import { supabase } from "../../lib/supabase";
+import { parseLocalDate } from "../../lib/dateUtils";
+import { Circuit, Stage } from "../../types";
 import { Navbar } from "../../components/public/Navbar";
 import { Footer } from "../../components/public/Footer";
-import { supabase } from "../../lib/supabase";
-import { Circuit, Stage } from "../../types";
 import { MapPin, Calendar, Users, Trophy } from "lucide-react";
 
 export function StagesPage() {
@@ -11,18 +12,17 @@ export function StagesPage() {
     const [circuits, setCircuits] = useState<Circuit[]>([]);
     const [selectedCircuit, setSelectedCircuit] = useState<string>("");
     const [stages, setStages] = useState<Stage[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [companyId, setCompanyId] = useState<string | null | undefined>(undefined);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         loadCompanyAndCircuits();
     }, [companyName]);
 
     useEffect(() => {
-        if (selectedCircuit && companyId !== undefined) {
+        if (selectedCircuit) {
             loadStages();
         }
-    }, [selectedCircuit, companyId]);
+    }, [selectedCircuit]);
 
     const loadCompanyAndCircuits = async () => {
         let currentCompanyId: string | null = null;
@@ -36,14 +36,7 @@ export function StagesPage() {
 
             if (company) {
                 currentCompanyId = company.id;
-                setCompanyId(company.id);
-            } else {
-                console.error("Empresa não encontrada:", companyName);
-                setCompanyId(null);
-                return;
             }
-        } else {
-            setCompanyId(null);
         }
 
         let query = supabase.from("circuits").select("*").eq("active", true);
@@ -61,7 +54,7 @@ export function StagesPage() {
                 year: item.year,
                 description: item.description,
                 active: item.active,
-                createdAt: new Date(item.created_at),
+                createdAt: parseLocalDate(item.created_at),
             }));
             setCircuits(circuitsData);
             if (circuitsData.length > 0) {
@@ -84,12 +77,12 @@ export function StagesPage() {
                 circuitId: item.circuit_id,
                 name: item.name,
                 location: item.location,
-                date: new Date(item.date),
-                registrationDeadline: new Date(item.registration_deadline),
+                date: parseLocalDate(item.date),
+                registrationDeadline: parseLocalDate(item.registration_deadline),
                 registrationFee: item.registration_fee || 0,
                 active: item.active,
                 status: item.status || "upcoming",
-                createdAt: new Date(item.created_at),
+                createdAt: parseLocalDate(item.created_at),
             }));
             setStages(stagesData);
         }
@@ -170,7 +163,7 @@ export function StagesPage() {
                                             </Link>
                                         ) : (
                                             <Link
-                                                to={`/register/${stage.id}`}
+                                                to={companyName ? `/${companyName}/register/${stage.id}` : `/register/${stage.id}`}
                                                 className="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-xl font-bold text-xs md:text-sm transition-all flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 active:scale-95"
                                             >
                                                 <Users className="w-4 h-4" />
