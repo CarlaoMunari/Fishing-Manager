@@ -280,18 +280,37 @@ export function Checkout() {
 
             const proofUrl = publicUrlData.publicUrl;
 
-            const { error: paymentError } = await supabase
+            const { data: existingPay } = await supabase
                 .from("payments")
-                .insert({
-                    team_id: team.id,
-                    stage_id: stage.id,
-                    company_id: targetCompanyId,
-                    amount: stage.registrationFee,
-                    payment_method: "pix_manual",
-                    status: "pending",
-                    proof_url: proofUrl,
-                    proof_uploaded_at: new Date().toISOString()
-                });
+                .select("id")
+                .eq("team_id", team.id)
+                .eq("stage_id", stage.id)
+                .maybeSingle();
+
+            const paymentPayload = {
+                team_id: team.id,
+                stage_id: stage.id,
+                company_id: targetCompanyId,
+                amount: stage.registrationFee,
+                payment_method: "pix_manual",
+                status: "pending",
+                proof_url: proofUrl,
+                proof_uploaded_at: new Date().toISOString()
+            };
+
+            let paymentError;
+            if (existingPay) {
+                const { error } = await supabase
+                    .from("payments")
+                    .update(paymentPayload)
+                    .eq("id", existingPay.id);
+                paymentError = error;
+            } else {
+                const { error } = await supabase
+                    .from("payments")
+                    .insert(paymentPayload);
+                paymentError = error;
+            }
 
             if (paymentError) {
                 throw new Error(`Falha ao registrar pagamento no banco: ${paymentError.message}`);
@@ -455,14 +474,27 @@ export function Checkout() {
                             onClick={async () => {
                                 try {
                                     const targetCompanyId = stage.companyId || (stage as any).company_id;
-                                    await supabase.from("payments").insert({
+                                    const { data: existingPay } = await supabase
+                                        .from("payments")
+                                        .select("id")
+                                        .eq("team_id", team.id)
+                                        .eq("stage_id", stage.id)
+                                        .maybeSingle();
+
+                                    const paymentPayload = {
                                         team_id: team.id,
                                         stage_id: stage.id,
                                         company_id: targetCompanyId,
                                         amount: stage.registrationFee,
                                         payment_method: "direct",
                                         status: "pending"
-                                    });
+                                    };
+
+                                    if (existingPay) {
+                                        await supabase.from("payments").update(paymentPayload).eq("id", existingPay.id);
+                                    } else {
+                                        await supabase.from("payments").insert(paymentPayload);
+                                    }
                                 } catch (e) {
                                     console.error("Direct payment insert:", e);
                                 }

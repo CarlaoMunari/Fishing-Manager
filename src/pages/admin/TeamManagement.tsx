@@ -158,8 +158,8 @@ export function TeamManagement() {
                     responsibleEmail: team.responsible_email || '',
                     responsiblePhone: team.responsible_phone || '',
                     stageName: team.stages?.name || '',
-                    paymentStatus: payment?.status || 'none',
-                    paymentMethod: payment?.method || '-',
+                    paymentStatus: payment?.status || (team.paid ? 'paid' : 'pending'),
+                    paymentMethod: payment?.payment_method || payment?.method || team.payment_method || 'direct',
                     registeredAt: new Date(team.created_at)
                 };
             });

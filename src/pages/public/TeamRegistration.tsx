@@ -290,6 +290,26 @@ export function TeamRegistration() {
                 teamId = newTeam.id;
             }
 
+            // Garantir que a equipe SEMPRE tenha um registro de pagamento (default 'direct')
+            const { data: existingPayment } = await supabase
+                .from("payments")
+                .select("id")
+                .eq("team_id", teamId)
+                .eq("stage_id", stageId)
+                .maybeSingle();
+
+            if (!existingPayment) {
+                const fee = stage?.registrationFee || (stage as any)?.registration_fee || 0;
+                await supabase.from("payments").insert({
+                    team_id: teamId,
+                    stage_id: stageId,
+                    company_id: targetCompanyId,
+                    amount: fee,
+                    payment_method: "direct",
+                    status: "pending"
+                });
+            }
+
             if (currentUser) {
                 const profileData = {
                     teamName: teamName.trim(),
