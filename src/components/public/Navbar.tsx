@@ -17,9 +17,20 @@ export function Navbar() {
     const [companyTitle, setCompanyTitle] = useState<string | null>(null);
     const [activeCompanySlug, setActiveCompanySlug] = useState<string>("");
 
-    // Load company settings
     useEffect(() => {
         loadCompanyData();
+
+        const handleSlugUpdate = () => {
+            loadCompanyData();
+        };
+
+        window.addEventListener("company_slug_updated", handleSlugUpdate);
+        window.addEventListener("storage", handleSlugUpdate);
+
+        return () => {
+            window.removeEventListener("company_slug_updated", handleSlugUpdate);
+            window.removeEventListener("storage", handleSlugUpdate);
+        };
     }, [companyName]);
 
     const loadCompanyData = async () => {
@@ -44,7 +55,6 @@ export function Navbar() {
                 return;
             }
 
-            // Save to localStorage so navigation persists within company context
             if (companyName) {
                 localStorage.setItem("last_company_slug", companyName);
             }
@@ -95,7 +105,7 @@ export function Navbar() {
         <nav className="bg-slate-900 text-white shadow-lg sticky top-0 z-50 border-b border-slate-800">
             <div className="container mx-auto px-4">
                 <div className="flex items-center justify-between h-20">
-                    {/* Logo - Clicar no logo vai para a página inicial da EMPRESA se estiver em uma empresa */}
+                    {/* Logo - Clicar no logo vai para a página inicial da EMPRESA */}
                     <Link to={companyHomePath} className="flex items-center gap-3 hover:opacity-90 transition-opacity group">
                         {companyLogo ? (
                             <img src={companyLogo} alt={companyTitle || "Logo"} className="h-12 max-w-[200px] object-contain" />

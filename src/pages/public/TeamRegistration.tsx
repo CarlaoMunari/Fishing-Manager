@@ -195,6 +195,20 @@ export function TeamRegistration() {
                     imageUrl: data.image_url,
                     createdAt: parseLocalDate(data.created_at),
                 } as Stage);
+
+                // Update company slug for company context in Navbar
+                if (data.company_id) {
+                    const { data: comp } = await supabase
+                        .from("users")
+                        .select("slug")
+                        .eq("id", data.company_id)
+                        .maybeSingle();
+
+                    if (comp?.slug) {
+                        localStorage.setItem("last_company_slug", comp.slug);
+                        window.dispatchEvent(new Event("company_slug_updated"));
+                    }
+                }
             }
         } catch (error) {
             console.error("Erro ao carregar etapa:", error);
@@ -290,7 +304,8 @@ export function TeamRegistration() {
                 localStorage.setItem(`fisherman_profile_${currentUser.id}`, JSON.stringify(profileData));
             }
 
-            const checkoutPath = companyName ? `/${companyName}/checkout` : "/checkout";
+            const activeSlug = companyName || localStorage.getItem("last_company_slug");
+            const checkoutPath = activeSlug ? `/${activeSlug}/checkout` : "/checkout";
             navigate(`${checkoutPath}?teamId=${teamId}&stageId=${stageId}`);
         } catch (err: any) {
             console.error("Erro ao salvar inscrição:", err);
