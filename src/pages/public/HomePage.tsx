@@ -22,6 +22,16 @@ interface Stats {
     stages: number;
 }
 
+
+const withTimeout = <T,>(promise: PromiseLike<T>, ms: number = 7000): Promise<T> => {
+    return Promise.race([
+        Promise.resolve(promise),
+        new Promise<T>((_, reject) =>
+            setTimeout(() => reject(new Error('Tempo limite de resposta do Supabase excedido')), ms)
+        )
+    ]);
+};
+
 export function HomePage() {
     const { companyName } = useParams();
     const [stats, setStats] = useState<Stats>({ circuits: 0, fishPreserved: 0, teams: 0, stages: 0 });
@@ -54,11 +64,17 @@ export function HomePage() {
 
             if (companyName) {
                 const cleanSlug = companyName.trim();
-                const { data: company, error: companyErr } = await supabase
-                    .from('users')
-                    .select('id')
-                    .ilike('slug', cleanSlug)
-                    .maybeSingle();
+                const { data: company, error: companyErr } = await withTimeout(
+                    supabase
+                        .from('users')
+                        .select('id')
+                        .ilike('slug', cleanSlug)
+                        .maybeSingle(),
+                    7000
+                ).catch((err) => {
+                    console.warn('Timeout ou erro na busca de slug:', err);
+                    return { data: null, error: err };
+                });
 
                 if (companyErr) {
                     console.warn('Erro ao buscar slug da empresa:', companyErr);
@@ -71,10 +87,15 @@ export function HomePage() {
                 }
             }
 
-            await Promise.all([
-                loadData(currentCompanyId),
-                loadCarouselImages(currentCompanyId)
-            ]);
+            await withTimeout(
+                Promise.all([
+                    loadData(currentCompanyId),
+                    loadCarouselImages(currentCompanyId)
+                ]),
+                8000
+            ).catch((err) => {
+                console.warn('Timeout no carregamento dos dados principais:', err);
+            });
         } catch (error) {
             console.error('Erro ao carregar dados da home:', error);
         } finally {
