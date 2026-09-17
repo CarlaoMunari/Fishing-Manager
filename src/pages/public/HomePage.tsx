@@ -50,21 +50,24 @@ export function HomePage() {
     const loadCompanyAndData = async () => {
         try {
             setLoading(true);
-            let currentCompanyId = null;
+            let currentCompanyId: string | null = null;
 
             if (companyName) {
-                const { data: company } = await supabase
+                const cleanSlug = companyName.trim();
+                const { data: company, error: companyErr } = await supabase
                     .from('users')
                     .select('id')
-                    .eq('slug', companyName)
-                    .single();
+                    .ilike('slug', cleanSlug)
+                    .maybeSingle();
+
+                if (companyErr) {
+                    console.warn('Erro ao buscar slug da empresa:', companyErr);
+                }
 
                 if (company) {
                     currentCompanyId = company.id;
                 } else {
-                    console.error('Empresa não encontrada para o slug:', companyName);
-                    setLoading(false);
-                    return;
+                    console.warn('Empresa não encontrada para o slug:', companyName);
                 }
             }
 
@@ -73,7 +76,7 @@ export function HomePage() {
                 loadCarouselImages(currentCompanyId)
             ]);
         } catch (error) {
-            console.error('Erro ao carregar dados:', error);
+            console.error('Erro ao carregar dados da home:', error);
         } finally {
             setLoading(false);
         }
@@ -168,7 +171,7 @@ export function HomePage() {
                 stages: stagesCount || 0
             });
 
-            const today = new Date().toISOString();
+            const today = new Date().toISOString().split('T')[0];
             let stagesDataQuery = supabase
                 .from('stages')
                 .select('*, circuits(name)')
